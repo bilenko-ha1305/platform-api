@@ -40,7 +40,7 @@ def get_app() -> FastAPI:
             ],
         )
     app = FastAPI(
-        title="ChurnLens API",
+        title="Revelio API",
         lifespan=lifespan_setup,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
@@ -49,7 +49,7 @@ def get_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "https://churnlens.com"],
+        allow_origins=["http://localhost:3000", "https://revelio.app"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

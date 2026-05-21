@@ -1,4 +1,4 @@
-"""ChurnLens AI investigation agent using LiteLLM."""
+"""Revelio AI investigation agent using LiteLLM."""
 
 from __future__ import annotations
 

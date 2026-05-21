@@ -1,4 +1,4 @@
-"""LiteLLM tool definitions for the ChurnLens investigation agent."""
+"""LiteLLM tool definitions for the Revelio investigation agent."""
 
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are ChurnLens, an AI analyst that investigates SaaS revenue drops.\n\n"
+    "You are Revelio, an AI analyst that investigates SaaS revenue drops.\n\n"
     "When the user asks about MRR or churn:\n"
     "1. Call the relevant data tools (multiple tools in one turn if needed)\n"
     "2. Find patterns: timing, feature abandonment, behaviour signals\n"
