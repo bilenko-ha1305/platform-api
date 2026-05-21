@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     # Fernet key for encrypting integration credentials
     encryption_key: str = ""
 
+    # Stripe billing (Revelio's own subscriptions)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_solo: str = ""  # price_xxx from Stripe dashboard
+    stripe_price_studio: str = ""  # price_xxx from Stripe dashboard
+    app_base_url: str = "http://localhost:3000"  # for Stripe redirect URLs
+
     # Sentry's configuration.
     sentry_dsn: str | None = None
     sentry_sample_rate: float = 1.0

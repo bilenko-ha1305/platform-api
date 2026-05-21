@@ -22,7 +22,12 @@ class Investigation(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    user_auth0_id: Mapped[str] = mapped_column(
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_by: Mapped[str] = mapped_column(
         String(128),
         ForeignKey("users.auth0_id", ondelete="CASCADE"),
         nullable=False,

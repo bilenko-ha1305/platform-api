@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from typing import Any
 
 from cryptography.fernet import Fernet
@@ -45,13 +46,13 @@ class IntegrationDAO:
 
     async def upsert(
         self,
-        user_auth0_id: str,
+        org_id: uuid.UUID,
         tool: str,
         credentials: dict[str, Any],
     ) -> Integration:
-        """Insert or replace an integration for a user.
+        """Insert or replace an integration for an organisation.
 
-        :param user_auth0_id: Owner's Auth0 subject ID.
+        :param org_id: Organisation UUID.
         :param tool: Integration identifier (e.g. "stripe").
         :param credentials: Plain-text credentials dict.
         :return: The persisted Integration.
@@ -60,12 +61,12 @@ class IntegrationDAO:
         stmt = (
             insert(Integration)
             .values(
-                user_auth0_id=user_auth0_id,
+                org_id=org_id,
                 tool=tool,
                 credentials_encrypted=encrypted,
             )
             .on_conflict_do_update(
-                constraint="integrations_user_auth0_id_tool_key",
+                constraint="integrations_org_id_tool_key",
                 set_={"credentials_encrypted": encrypted},
             )
             .returning(Integration)
@@ -73,37 +74,37 @@ class IntegrationDAO:
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
-    async def get_for_user(self, user_auth0_id: str) -> list[Integration]:
-        """List all integrations for a user.
+    async def get_for_org(self, org_id: uuid.UUID) -> list[Integration]:
+        """List all integrations for an organisation.
 
-        :param user_auth0_id: Auth0 subject ID.
+        :param org_id: Organisation UUID.
         :return: List of Integration rows (credentials still encrypted).
         """
         result = await self.session.execute(
-            select(Integration).where(Integration.user_auth0_id == user_auth0_id)
+            select(Integration).where(Integration.org_id == org_id)
         )
         return list(result.scalars().all())
 
-    async def get_decrypted(self, user_auth0_id: str) -> dict[str, dict[str, Any]]:
+    async def get_decrypted(self, org_id: uuid.UUID) -> dict[str, dict[str, Any]]:
         """Return decrypted credentials keyed by tool name.
 
-        :param user_auth0_id: Auth0 subject ID.
+        :param org_id: Organisation UUID.
         :return: Mapping of tool -> credentials dict.
         """
-        integrations = await self.get_for_user(user_auth0_id)
+        integrations = await self.get_for_org(org_id)
         return {
             row.tool: self._decrypt(row.credentials_encrypted) for row in integrations
         }
 
-    async def delete_tool(self, user_auth0_id: str, tool: str) -> None:
-        """Remove an integration for a user.
+    async def delete_tool(self, org_id: uuid.UUID, tool: str) -> None:
+        """Remove an integration for an organisation.
 
-        :param user_auth0_id: Auth0 subject ID.
+        :param org_id: Organisation UUID.
         :param tool: Integration identifier to remove.
         """
         await self.session.execute(
             delete(Integration).where(
-                Integration.user_auth0_id == user_auth0_id,
+                Integration.org_id == org_id,
                 Integration.tool == tool,
             )
         )

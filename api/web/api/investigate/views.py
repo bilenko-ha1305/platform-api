@@ -16,6 +16,7 @@ from api.web.api.investigate.schema import (
     InvestigationSummaryDTO,
 )
 from api.web.dependencies.auth import verify_token
+from api.web.dependencies.org import OrgContext, get_org_context
 
 router = APIRouter()
 
@@ -24,20 +25,21 @@ router = APIRouter()
 async def investigate(
     body: InvestigateRequestDTO,
     user_payload: dict[str, Any] = Depends(verify_token),
+    ctx: OrgContext = Depends(get_org_context),
     integration_dao: IntegrationDAO = Depends(),
     investigation_dao: InvestigationDAO = Depends(),
 ) -> InvestigationResultDTO:
     """Run a churn investigation and persist the result.
 
     :param body: Natural-language investigation question.
-    :param user_payload: Decoded JWT claims.
+    :param user_payload: Decoded JWT claims (for created_by).
+    :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO for credential lookup.
     :param investigation_dao: Injected InvestigationDAO for persistence.
     :return: Structured investigation result.
     :raises HTTPException: 400 if no integrations are connected.
     """
-    user_id: str = user_payload["sub"]
-    integrations = await integration_dao.get_decrypted(user_auth0_id=user_id)
+    integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
 
     if not integrations:
         raise HTTPException(
@@ -58,7 +60,8 @@ async def investigate(
     sources_used: list[str] = result.pop("sources_used", [])
 
     row = await investigation_dao.create(
-        user_auth0_id=user_id,
+        org_id=ctx.org_id,
+        created_by=user_payload["sub"],
         question=body.question,
         result=result,
         sources_used=sources_used,
@@ -83,19 +86,19 @@ async def investigate(
 async def list_investigations(
     limit: int = 20,
     offset: int = 0,
-    user_payload: dict[str, Any] = Depends(verify_token),
+    ctx: OrgContext = Depends(get_org_context),
     investigation_dao: InvestigationDAO = Depends(),
 ) -> list[InvestigationSummaryDTO]:
-    """Return paginated investigation history for the current user.
+    """Return paginated investigation history for the current organisation.
 
     :param limit: Max rows to return.
     :param offset: Row offset for pagination.
-    :param user_payload: Decoded JWT claims.
+    :param ctx: Resolved org context.
     :param investigation_dao: Injected InvestigationDAO.
     :return: List of investigation summaries.
     """
-    rows = await investigation_dao.list_for_user(
-        user_auth0_id=user_payload["sub"],
+    rows = await investigation_dao.list_for_org(
+        org_id=ctx.org_id,
         limit=limit,
         offset=offset,
     )

@@ -13,23 +13,23 @@ from api.db.base import Base
 
 
 class Integration(Base):
-    """Stores encrypted third-party API credentials per user per tool."""
+    """Stores encrypted third-party API credentials per organisation per tool."""
 
     __tablename__ = "integrations"
     __table_args__ = (
         UniqueConstraint(
-            "user_auth0_id",
+            "org_id",
             "tool",
-            name="integrations_user_auth0_id_tool_key",
+            name="integrations_org_id_tool_key",
         ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    user_auth0_id: Mapped[str] = mapped_column(
-        String(128),
-        ForeignKey("users.auth0_id", ondelete="CASCADE"),
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
     tool: Mapped[str] = mapped_column(String(50), nullable=False)
