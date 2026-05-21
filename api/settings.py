@@ -53,6 +53,17 @@ class Settings(BaseSettings):
     redis_pass: str | None = None
     redis_base: int | None = None
 
+    # Auth0 configuration
+    auth0_domain: str = ""
+    auth0_audience: str = ""
+
+    # AI model configuration (LiteLLM format, e.g. "anthropic/claude-sonnet-4-6")
+    ai_model: str = "anthropic/claude-sonnet-4-6"
+    ai_api_key: str = ""
+
+    # Fernet key for encrypting integration credentials
+    encryption_key: str = ""
+
     # Sentry's configuration.
     sentry_dsn: str | None = None
     sentry_sample_rate: float = 1.0
