@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from collections.abc import AsyncGenerator
+from typing import Any, cast
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AsyncStream
+from openai.types.chat import ChatCompletionChunk
 
 from api.services.ai.tools import SYSTEM_PROMPT, TOOLS
 from api.services.integrations import posthog_service, stripe_service
@@ -57,13 +59,6 @@ async def _execute_tool(
     tool_args: dict[str, Any],
     integrations: dict[str, dict[str, Any]],
 ) -> Any:
-    """Dispatch a tool call to the appropriate integration service.
-
-    :param tool_name: Name of the tool function to invoke.
-    :param tool_args: Parsed arguments from the LLM tool call.
-    :param integrations: Decrypted credentials keyed by tool name.
-    :return: JSON-serialisable result from the integration service.
-    """
     if tool_name.startswith("get_stripe"):
         creds = integrations.get("stripe", {})
         if not creds:
@@ -79,21 +74,19 @@ async def _execute_tool(
     return {"error": f"Unknown tool: {tool_name}"}
 
 
-async def run_investigation(
+async def stream_investigation(
     question: str,
     integrations: dict[str, dict[str, Any]],
     model: str,
     api_key: str,
     base_url: str = "https://models.github.ai/inference",
-) -> dict[str, Any]:
-    """Run a full churn investigation using the AI agent and connected tools.
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Stream an investigation as SSE-ready event dicts.
 
-    :param question: Natural-language question from the user.
-    :param integrations: Decrypted integration credentials keyed by tool name.
-    :param model: OpenAI-compatible model identifier (e.g. "openai/gpt-5-nano").
-    :param api_key: API key / GitHub token for the provider.
-    :param base_url: OpenAI-compatible inference endpoint.
-    :return: Structured result dict with summary, root_cause, evidence, action.
+    Yields dicts with a "type" key:
+    - ``{"type": "status", "message": str}`` — progress update
+    - ``{"type": "token", "content": str}`` — synthesis text token
+    - ``{"type": "result", "data": dict}`` — final structured result (internal)
     """
     client = _client(api_key=api_key, base_url=base_url)
     connected = list(integrations.keys())
@@ -111,7 +104,9 @@ async def run_investigation(
         if any(connected_tool in t["function"]["name"] for connected_tool in connected)
     ] or TOOLS
 
-    response = await client.chat.completions.create(
+    yield {"type": "status", "message": "Analysing your question…"}
+
+    response = await client.chat.completions.create(  # type: ignore[call-overload]
         model=model,
         messages=messages,  # type: ignore[arg-type]
         tools=available_tools,  # type: ignore[arg-type]
@@ -125,6 +120,12 @@ async def run_investigation(
     if tool_calls:
         messages.append(assistant_message.model_dump(exclude_unset=False))
 
+        tool_names = {tc.function.name for tc in tool_calls}
+        if any("stripe" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Stripe data…"}
+        if any("posthog" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching PostHog events…"}
+
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
             result = await _execute_tool(tc.function.name, args, integrations)
@@ -132,12 +133,12 @@ async def run_investigation(
 
         results = await asyncio.gather(*[_call(tc) for tc in tool_calls])
 
-        for call_id, result in results:
+        for call_id, tool_result in results:
             messages.append(
                 {
                     "role": "tool",
                     "tool_call_id": call_id,
-                    "content": json.dumps(result),
+                    "content": json.dumps(tool_result),
                 }
             )
             tool_name = next(
@@ -148,14 +149,31 @@ async def run_investigation(
             if "posthog" in tool_name and "posthog" not in sources_used:
                 sources_used.append("posthog")
 
-        final_response = await client.chat.completions.create(
-            model=model,
-            messages=messages,  # type: ignore[arg-type]
-            response_format={"type": "json_object"},  # type: ignore[arg-type]
+        yield {"type": "status", "message": "Writing investigation report…"}
+
+        full_content = ""
+        stream = cast(
+            AsyncStream[ChatCompletionChunk],
+            await client.chat.completions.create(
+                model=model,
+                messages=messages,  # type: ignore[arg-type]
+                stream=True,
+            ),
         )
-        final_content = final_response.choices[0].message.content or "{}"
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                full_content += delta
+                yield {"type": "token", "content": delta}
+
+        final_content = full_content
     else:
         final_content = assistant_message.content or "{}"
+        # Stream character-by-character for consistency
+        for char in final_content:
+            yield {"type": "token", "content": char}
 
     try:
         result_dict: dict[str, Any] = json.loads(final_content)
@@ -169,4 +187,25 @@ async def run_investigation(
         }
 
     result_dict["sources_used"] = sources_used
-    return result_dict
+    yield {"type": "result", "data": result_dict}
+
+
+async def run_investigation(
+    question: str,
+    integrations: dict[str, dict[str, Any]],
+    model: str,
+    api_key: str,
+    base_url: str = "https://models.github.ai/inference",
+) -> dict[str, Any]:
+    """Non-streaming wrapper around stream_investigation."""
+    result: dict[str, Any] = {}
+    async for event in stream_investigation(
+        question=question,
+        integrations=integrations,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+    ):
+        if event["type"] == "result":
+            result = event["data"]
+    return result
