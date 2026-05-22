@@ -319,6 +319,62 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_supabase_tables",
+            "description": (
+                "List all tables available in the user's Supabase database. "
+                "Call this first to discover table names before querying specific tables."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_supabase_table",
+            "description": (
+                "Fetch rows from a specific table in the user's Supabase database. "
+                "Use to query users, events, subscriptions, or any custom business data "
+                "that can help explain churn patterns or answer questions about the product."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "table": {
+                        "type": "string",
+                        "description": "Table name to query.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum rows to return (default 100, max 500).",
+                    },
+                    "order": {
+                        "type": "string",
+                        "description": (
+                            "PostgREST order expression, e.g. 'created_at.desc' to get "
+                            "the most recent rows first."
+                        ),
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": (
+                            "Column-level PostgREST filters as key-value pairs. "
+                            "e.g. {\"status\": \"eq.active\", \"plan\": \"eq.pro\"}. "
+                            "Supported operators: eq, neq, lt, lte, gt, gte, like, ilike."
+                        ),
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": ["table"],
+            },
+        },
+    },
 ]
 
 def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:

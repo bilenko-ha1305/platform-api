@@ -18,6 +18,7 @@ from api.services.integrations import (
     paypal_service,
     posthog_service,
     stripe_service,
+    supabase_service,
     vercel_service,
 )
 
@@ -193,6 +194,26 @@ async def _execute_tool(
             for release in releases
         ]
 
+    if tool_name in ("list_supabase_tables", "get_supabase_table"):
+        creds = integrations.get("supabase", {})
+        if not creds:
+            return {"error": "Supabase not connected"}
+        project_url = creds.get("project_url", "")
+        api_key = creds.get("api_key", "")
+        if tool_name == "list_supabase_tables":
+            return await supabase_service.list_tables(
+                project_url=project_url,
+                api_key=api_key,
+            )
+        return await supabase_service.query_table(
+            project_url=project_url,
+            api_key=api_key,
+            table=tool_args["table"],
+            limit=tool_args.get("limit", 100),
+            order=tool_args.get("order"),
+            filters=tool_args.get("filters"),
+        )
+
     return {"error": f"Unknown tool: {tool_name}"}
 
 
@@ -258,6 +279,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching GitHub activity…"}
         if any("vercel" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
+        if any("supabase" in t for t in tool_names):
+            yield {"type": "status", "message": "Querying Supabase database…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -277,7 +300,7 @@ async def stream_investigation(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            for source in ("stripe", "posthog", "intercom", "mailchimp", "github"):
+            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase"):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
 

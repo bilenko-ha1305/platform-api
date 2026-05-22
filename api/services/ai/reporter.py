@@ -80,6 +80,8 @@ async def stream_report(
             yield {"type": "status", "message": "Fetching GitHub activity…"}
         if any("vercel" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
+        if any("supabase" in t for t in tool_names):
+            yield {"type": "status", "message": "Querying Supabase database…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -99,7 +101,7 @@ async def stream_report(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            for source in ("stripe", "posthog", "intercom", "mailchimp", "github"):
+            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase"):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
 
