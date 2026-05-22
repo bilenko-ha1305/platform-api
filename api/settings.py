@@ -2,6 +2,7 @@ import enum
 from pathlib import Path
 from tempfile import gettempdir
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from yarl import URL
 
@@ -27,8 +28,10 @@ class Settings(BaseSettings):
     with environment variables.
     """
 
-    host: str = "127.0.0.1"
-    port: int = 8000
+    # Bind to 0.0.0.0 so Railway (and Docker) can reach the process
+    host: str = "0.0.0.0"  # noqa: S104
+    # Railway injects PORT; also accept API_PORT for explicit override
+    port: int = Field(default=8000, validation_alias=AliasChoices("API_PORT", "PORT"))
     # quantity of workers for uvicorn
     workers_count: int = 1
     # Enable uvicorn reloading
@@ -38,20 +41,34 @@ class Settings(BaseSettings):
     environment: str = "dev"
 
     log_level: LogLevel = LogLevel.INFO
-    # Variables for the database
+
+    # Database — individual fields (local/docker) or DATABASE_URL (Railway)
     db_host: str = "localhost"
     db_port: int = 5432
     db_user: str = "api"
     db_pass: str = "api"  # noqa: S105
     db_base: str = "api"
     db_echo: bool = False
+    # Railway/Supabase connection string — takes precedence when set
+    database_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("API_DATABASE_URL", "DATABASE_URL"),
+    )
 
-    # Variables for Redis
+    # Redis — individual fields (local/docker) or REDIS_URL (Railway)
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_user: str | None = None
     redis_pass: str | None = None
     redis_base: int | None = None
+    # Railway Redis connection string — takes precedence when set
+    redis_url_override: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("API_REDIS_URL", "REDIS_URL"),
+    )
+
+    # Allowed CORS origins — space-separated list in env var
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     # Auth0 configuration
     auth0_domain: str = ""
@@ -83,6 +100,12 @@ class Settings(BaseSettings):
 
         :return: database URL.
         """
+        if self.database_url:
+            # Railway/Supabase provide postgres:// or postgresql:// — asyncpg needs the +asyncpg scheme
+            raw = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1).replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+            return URL(raw)
         return URL.build(
             scheme="postgresql+asyncpg",
             host=self.db_host,
@@ -99,6 +122,8 @@ class Settings(BaseSettings):
 
         :return: redis URL.
         """
+        if self.redis_url_override:
+            return URL(self.redis_url_override)
         path = ""
         if self.redis_base is not None:
             path = f"/{self.redis_base}"
