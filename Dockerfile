@@ -33,6 +33,4 @@ CMD ["/usr/local/bin/python", "-m", "api"]
 # -----------------------------------
 FROM prod AS dev
 
-RUN --mount=from=uv,source=/usr/local/bin/uv,target=/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --all-groups
+RUN uv sync --locked --all-groups
