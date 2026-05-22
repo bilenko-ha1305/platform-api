@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from openai import AsyncStream
+from openai import AsyncStream, AuthenticationError
 from openai.types.chat import ChatCompletionChunk
+
+logger = logging.getLogger(__name__)
 
 from api.services.ai.agent import _client, _execute_tool
 from api.services.ai.tools import TOOLS, build_report_system_prompt
@@ -51,12 +54,22 @@ async def stream_report(
 
     yield {"type": "status", "message": "Starting report generation…"}
 
-    response = await client.chat.completions.create(  # type: ignore[call-overload]
-        model=model,
-        messages=messages,  # type: ignore[arg-type]
-        tools=available_tools,  # type: ignore[arg-type]
-        tool_choice="auto",
-    )
+    try:
+        response = await client.chat.completions.create(  # type: ignore[call-overload]
+            model=model,
+            messages=messages,  # type: ignore[arg-type]
+            tools=available_tools,  # type: ignore[arg-type]
+            tool_choice="auto",
+        )
+    except AuthenticationError as exc:
+        logger.error(
+            "AI 401 Unauthorized (report tool-selection call) — model=%s base_url=%s key_set=%s body=%s",
+            model,
+            base_url,
+            bool(api_key),
+            exc.body,
+        )
+        raise
 
     assistant_message = response.choices[0].message
     tool_calls = assistant_message.tool_calls or []
@@ -108,14 +121,24 @@ async def stream_report(
         yield {"type": "status", "message": "Writing report…"}
 
         full_content = ""
-        stream = cast(
-            AsyncStream[ChatCompletionChunk],
-            await client.chat.completions.create(
-                model=model,
-                messages=messages,  # type: ignore[arg-type]
-                stream=True,
-            ),
-        )
+        try:
+            stream = cast(
+                AsyncStream[ChatCompletionChunk],
+                await client.chat.completions.create(
+                    model=model,
+                    messages=messages,  # type: ignore[arg-type]
+                    stream=True,
+                ),
+            )
+        except AuthenticationError as exc:
+            logger.error(
+                "AI 401 Unauthorized (report synthesis call) — model=%s base_url=%s key_set=%s body=%s",
+                model,
+                base_url,
+                bool(api_key),
+                exc.body,
+            )
+            raise
         async for chunk in stream:
             if not chunk.choices:
                 continue
