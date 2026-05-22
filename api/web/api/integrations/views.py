@@ -5,8 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.db.dao.integration_dao import IntegrationDAO
+from api.enums import Plan
 from api.web.api.integrations.schema import IntegrationCreateDTO, IntegrationDTO
 from api.web.dependencies.org import OrgContext, get_org_context
+
+FREE_PLAN_ALLOWED = {"stripe"}
 
 router = APIRouter()
 
@@ -39,6 +42,11 @@ async def connect_integration(
     :param integration_dao: Injected IntegrationDAO.
     :return: Confirmation of connected integration.
     """
+    if ctx.plan == Plan.FREE and body.tool not in FREE_PLAN_ALLOWED:
+        raise HTTPException(
+            status_code=403,
+            detail="Upgrade to Solo or Studio to connect additional integrations.",
+        )
     await integration_dao.upsert(
         org_id=ctx.org_id,
         tool=body.tool,
