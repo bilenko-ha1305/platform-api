@@ -21,9 +21,7 @@ RUN uv sync --locked --no-install-project --no-dev
 
 COPY . .
 
-RUN --mount=from=uv,source=/usr/local/bin/uv,target=/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev
+RUN uv sync --locked --no-dev
 
 CMD ["/usr/local/bin/python", "-m", "api"]
 
