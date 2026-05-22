@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     )
 
     # Allowed CORS origins — space-separated list in env var
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "https://platform-web-eta-one.vercel.app"]
 
     # Auth0 configuration
     auth0_domain: str = ""
