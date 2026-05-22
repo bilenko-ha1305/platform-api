@@ -11,7 +11,13 @@ from openai import AsyncOpenAI, AsyncStream
 from openai.types.chat import ChatCompletionChunk
 
 from api.services.ai.tools import TOOLS, build_system_prompt
-from api.services.integrations import posthog_service, stripe_service
+from api.services.integrations import (
+    github_service,
+    intercom_service,
+    mailchimp_service,
+    posthog_service,
+    stripe_service,
+)
 
 
 def _client(api_key: str, base_url: str) -> AsyncOpenAI:
@@ -71,6 +77,69 @@ async def _execute_tool(
             return {"error": "PostHog not connected"}
         return await _execute_posthog(tool_name, tool_args, creds)
 
+    if tool_name.startswith("get_intercom"):
+        creds = integrations.get("intercom", {})
+        if not creds:
+            return {"error": "Intercom not connected"}
+        return await intercom_service.get_conversations(
+            access_token=creds["access_token"],
+            days_back=tool_args.get("days_back", 30),
+        )
+
+    if tool_name.startswith("get_mailchimp"):
+        creds = integrations.get("mailchimp", {})
+        if not creds:
+            return {"error": "Mailchimp not connected"}
+        if tool_name == "get_mailchimp_campaign_stats":
+            return await mailchimp_service.get_campaign_stats(
+                api_key=creds["api_key"],
+                days_back=tool_args.get("days_back", 60),
+            )
+        return await mailchimp_service.get_unsubscribes(
+            api_key=creds["api_key"],
+            list_id=creds.get("list_id", ""),
+            days_back=tool_args.get("days_back", 30),
+        )
+
+    if tool_name.startswith("get_github"):
+        creds = integrations.get("github", {})
+        if not creds:
+            return {"error": "GitHub not connected"}
+        repos = [
+            r.strip()
+            for r in creds.get("repos", "").replace(",", "\n").splitlines()
+            if r.strip()
+        ]
+        if not repos:
+            return {"error": "No GitHub repositories configured"}
+        if tool_name == "get_github_commits":
+            results = await asyncio.gather(
+                *[
+                    github_service.get_recent_commits(
+                        token=creds["token"],
+                        repo=repo,
+                        days_back=tool_args.get("days_back", 30),
+                    )
+                    for repo in repos
+                ]
+            )
+            return [
+                {**commit, "repo": repo}
+                for repo, commits in zip(repos, results)
+                for commit in commits
+            ]
+        results_rel = await asyncio.gather(
+            *[
+                github_service.get_recent_releases(token=creds["token"], repo=repo)
+                for repo in repos
+            ]
+        )
+        return [
+            {**release, "repo": repo}
+            for repo, releases in zip(repos, results_rel)
+            for release in releases
+        ]
+
     return {"error": f"Unknown tool: {tool_name}"}
 
 
@@ -126,6 +195,12 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Stripe data…"}
         if any("posthog" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching PostHog events…"}
+        if any("intercom" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Intercom conversations…"}
+        if any("mailchimp" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Mailchimp data…"}
+        if any("github" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching GitHub activity…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -145,10 +220,9 @@ async def stream_investigation(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            if "stripe" in tool_name and "stripe" not in sources_used:
-                sources_used.append("stripe")
-            if "posthog" in tool_name and "posthog" not in sources_used:
-                sources_used.append("posthog")
+            for source in ("stripe", "posthog", "intercom", "mailchimp", "github"):
+                if source in tool_name and source not in sources_used:
+                    sources_used.append(source)
 
         yield {"type": "status", "message": "Writing investigation report…"}
 

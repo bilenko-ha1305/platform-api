@@ -96,6 +96,103 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_intercom_conversations",
+            "description": (
+                "Fetch recent Intercom conversations to identify support complaints, "
+                "cancellation requests, and negative sentiment that precede churn."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of conversation history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_mailchimp_campaign_stats",
+            "description": (
+                "Fetch Mailchimp email campaign send stats including open rates, "
+                "click rates, and unsubscribes. Useful for correlating email engagement "
+                "drops with churn spikes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of campaign history to fetch (default 60).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_mailchimp_unsubscribes",
+            "description": (
+                "Fetch recent email list unsubscribes from Mailchimp, including reason codes. "
+                "High unsubscribe rates often precede subscription cancellations."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of unsubscribe history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_github_commits",
+            "description": (
+                "Fetch recent GitHub commits to correlate code deployments or breaking "
+                "changes with churn spikes. Look for timing overlaps between deploys and "
+                "cancellation surges."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of commit history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_github_releases",
+            "description": (
+                "Fetch the most recent GitHub releases/tags. Useful for pinpointing "
+                "which version was live when churn spiked."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
 ]
 
 def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:

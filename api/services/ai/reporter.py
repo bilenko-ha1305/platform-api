@@ -70,6 +70,12 @@ async def stream_report(
             yield {"type": "status", "message": "Fetching Stripe data…"}
         if any("posthog" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching PostHog events…"}
+        if any("intercom" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Intercom conversations…"}
+        if any("mailchimp" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Mailchimp data…"}
+        if any("github" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching GitHub activity…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -89,10 +95,9 @@ async def stream_report(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            if "stripe" in tool_name and "stripe" not in sources_used:
-                sources_used.append("stripe")
-            if "posthog" in tool_name and "posthog" not in sources_used:
-                sources_used.append("posthog")
+            for source in ("stripe", "posthog", "intercom", "mailchimp", "github"):
+                if source in tool_name and source not in sources_used:
+                    sources_used.append(source)
 
         yield {"type": "status", "message": "Writing report…"}
 
