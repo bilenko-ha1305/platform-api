@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.db.dao.org_dao import OrgDAO
 from api.db.dao.user_dao import UserDAO
 from api.db.models.org_model import Organization
+from api.enums import OrgRole
 from api.web.api.organizations.schema import (
     BusinessProfileDTO,
     InviteCreateDTO,
@@ -112,7 +113,7 @@ async def update_plan(
     :raises HTTPException: 403 if caller is not admin.
     :return: Updated OrgDTO.
     """
-    if ctx.role != "admin":
+    if ctx.role != OrgRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     org = await org_dao.update_plan(ctx.org_id, body.plan)
     return await _build_org_dto(org, org_dao)
@@ -151,7 +152,7 @@ async def create_invite(
     :raises HTTPException: 403 if caller is not admin.
     :return: InviteDTO with the invite token.
     """
-    if ctx.role != "admin":
+    if ctx.role != OrgRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     invite = await org_dao.create_invite(
         org_id=ctx.org_id,
@@ -251,7 +252,7 @@ async def revoke_invite(
     :param org_dao: Injected OrgDAO.
     :raises HTTPException: 403 if not admin; 404 if invite not found.
     """
-    if ctx.role != "admin":
+    if ctx.role != OrgRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     invite = await org_dao.get_invite_by_token(token)
     if not invite or invite.org_id != ctx.org_id:
@@ -274,7 +275,7 @@ async def remove_member(
     :param org_dao: Injected OrgDAO.
     :raises HTTPException: 400 on self-removal; 403 if not admin.
     """
-    if ctx.role != "admin":
+    if ctx.role != OrgRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     if member_auth0_id == user_payload["sub"]:
         raise HTTPException(status_code=400, detail="Cannot remove yourself")

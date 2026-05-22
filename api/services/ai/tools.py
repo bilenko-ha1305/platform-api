@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from api.enums import BusinessModel
+
 TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
@@ -107,7 +109,11 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
         if desc := business_profile.get("description"):
             lines.append(f"Product description: {desc}")
         if bm := business_profile.get("business_model"):
-            label = {"b2b": "B2B (business customers)", "b2c": "B2C (consumer)", "both": "B2B + B2C"}.get(bm, bm)
+            label = {
+                BusinessModel.B2B: "B2B (business customers)",
+                BusinessModel.B2C: "B2C (consumer)",
+                BusinessModel.BOTH: "B2B + B2C",
+            }.get(BusinessModel(bm), bm)
             lines.append(f"Business model: {label}")
         if launched := business_profile.get("launched_at"):
             lines.append(f"Product launched: {launched}")

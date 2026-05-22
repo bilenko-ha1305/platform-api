@@ -6,12 +6,13 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from api.db.base import Base
+from api.enums import OrgRole, Plan
 
 
 class Organization(Base):
@@ -29,7 +30,7 @@ class Organization(Base):
         ForeignKey("users.auth0_id", ondelete="SET NULL"),
         nullable=True,
     )
-    plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="free")
+    plan: Mapped[Plan] = mapped_column(SAEnum(Plan, values_callable=lambda x: [e.value for e in x]), nullable=False, server_default="free")
     stripe_customer_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True, unique=True
     )
@@ -65,8 +66,8 @@ class OrganizationMember(Base):
         ForeignKey("users.auth0_id", ondelete="CASCADE"),
         nullable=False,
     )
-    role: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="member"
+    role: Mapped[OrgRole] = mapped_column(
+        SAEnum(OrgRole, values_callable=lambda x: [e.value for e in x]), nullable=False, server_default="member"
     )
     invited_by: Mapped[str | None] = mapped_column(
         String(128),
@@ -93,8 +94,8 @@ class OrganizationInvite(Base):
     )
     email: Mapped[str] = mapped_column(String(254), nullable=False)
     token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    role: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="member"
+    role: Mapped[OrgRole] = mapped_column(
+        SAEnum(OrgRole, values_callable=lambda x: [e.value for e in x]), nullable=False, server_default="member"
     )
     invited_by: Mapped[str] = mapped_column(
         String(128),

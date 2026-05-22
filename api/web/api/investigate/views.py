@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from api.db.dao.integration_dao import IntegrationDAO
 from api.db.dao.investigation_dao import InvestigationDAO
 from api.db.dao.org_dao import OrgDAO
+from api.enums import Plan
 from api.services.ai.agent import run_investigation, stream_investigation
 from api.settings import settings
 from api.web.api.investigate.schema import (
@@ -26,16 +27,16 @@ from api.web.dependencies.org import OrgContext, get_org_context
 router = APIRouter()
 
 # Monthly investigation limits per plan; -1 = unlimited
-PLAN_LIMITS: dict[str, int] = {
-    "free": 3,
-    "solo": 50,
-    "studio": -1,
+PLAN_LIMITS: dict[Plan, int] = {
+    Plan.FREE: 3,
+    Plan.SOLO: 50,
+    Plan.STUDIO: -1,
 }
 
 
 async def _check_plan_limit(
     org_id: Any,
-    plan: str,
+    plan: Plan,
     investigation_dao: InvestigationDAO,
 ) -> None:
     limit = PLAN_LIMITS.get(plan, 3)

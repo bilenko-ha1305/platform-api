@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from api.enums import BusinessModel, OrgRole, Plan
+
 
 class OrgCreateDTO(BaseModel):
     """Request body to create an organisation."""
@@ -21,7 +23,7 @@ class MemberDTO(BaseModel):
     user_auth0_id: str
     email: str | None
     name: str | None
-    role: str
+    role: OrgRole
     joined_at: datetime
 
 
@@ -29,7 +31,7 @@ class InviteCreateDTO(BaseModel):
     """Request body to invite a user."""
 
     email: EmailStr
-    role: str = "member"
+    role: OrgRole = OrgRole.MEMBER
 
 
 class InviteDTO(BaseModel):
@@ -39,7 +41,7 @@ class InviteDTO(BaseModel):
 
     id: uuid.UUID
     email: str
-    role: str
+    role: OrgRole
     token: str
     created_at: datetime
     expires_at: datetime
@@ -50,7 +52,7 @@ class BusinessProfileDTO(BaseModel):
     """Request body to set the organisation's business profile."""
 
     description: str = Field(max_length=500)
-    business_model: str = Field(pattern="^(b2b|b2c|both)$")
+    business_model: BusinessModel
     launched_at: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")  # YYYY-MM
 
 
@@ -60,20 +62,17 @@ class OrgDTO(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
-    plan: str
-    has_billing: bool  # True if a Stripe customer record exists
+    plan: Plan
+    has_billing: bool
     business_profile: dict[str, Any] | None = None
     members: list[MemberDTO]
     pending_invites: list[InviteDTO]
 
 
-VALID_PLANS = {"free", "solo", "studio"}
-
-
 class OrgUpdatePlanDTO(BaseModel):
     """Request body to change the organisation plan."""
 
-    plan: str = Field(pattern="^(free|solo|studio)$")
+    plan: Plan
 
 
 class PublicInviteDTO(BaseModel):
@@ -81,7 +80,7 @@ class PublicInviteDTO(BaseModel):
 
     org_name: str
     email: str
-    role: str
+    role: OrgRole
     expires_at: datetime
     is_expired: bool
     is_accepted: bool

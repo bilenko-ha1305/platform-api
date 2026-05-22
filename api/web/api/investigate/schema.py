@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from api.enums import Confidence
+
 
 class InvestigateRequestDTO(BaseModel):
     """Request body to start an investigation."""
@@ -24,7 +26,7 @@ class InvestigationResultDTO(BaseModel):
     root_cause: str
     evidence: list[str]
     recommended_action: str
-    confidence: str
+    confidence: Confidence
     sources_used: list[Any]
     ai_model: str
     created_at: datetime

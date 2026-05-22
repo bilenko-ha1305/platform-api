@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import Depends, HTTPException
 
 from api.db.dao.org_dao import OrgDAO
+from api.enums import OrgRole, Plan
 from api.web.dependencies.auth import verify_token
 
 
@@ -17,8 +18,8 @@ class OrgContext:
     """Resolved organisation membership context for the current request."""
 
     org_id: uuid.UUID
-    role: str   # "admin" | "member"
-    plan: str   # "free" | "solo" | "studio"
+    role: OrgRole
+    plan: Plan
 
 
 async def get_org_context(
@@ -39,5 +40,5 @@ async def get_org_context(
             detail="No organisation found. Create or join one first.",
         )
     org = await org_dao.get_by_id(member.org_id)
-    plan = org.plan if org else "free"
+    plan = org.plan if org else Plan.FREE
     return OrgContext(org_id=member.org_id, role=member.role, plan=plan)
