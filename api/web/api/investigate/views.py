@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -196,6 +197,37 @@ async def stream_investigate(
         _generate(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/{investigation_id}", response_model=InvestigationResultDTO)
+async def get_investigation(
+    investigation_id: uuid.UUID,
+    ctx: OrgContext = Depends(get_org_context),
+    investigation_dao: InvestigationDAO = Depends(),
+) -> InvestigationResultDTO:
+    """Return a single investigation by ID.
+
+    :param investigation_id: UUID of the investigation.
+    :param ctx: Resolved org context (scopes to current org).
+    :param investigation_dao: Injected InvestigationDAO.
+    :raises HTTPException: 404 if not found.
+    :return: Full InvestigationResultDTO.
+    """
+    row = await investigation_dao.get_by_id(investigation_id, ctx.org_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    return InvestigationResultDTO(
+        id=row.id,
+        question=row.question,
+        summary=row.result.get("summary", ""),
+        root_cause=row.result.get("root_cause", ""),
+        evidence=row.result.get("evidence", []),
+        recommended_action=row.result.get("recommended_action", ""),
+        confidence=row.result.get("confidence", "medium"),
+        sources_used=row.sources_used,
+        ai_model=row.ai_model,
+        created_at=row.created_at,
     )
 
 
