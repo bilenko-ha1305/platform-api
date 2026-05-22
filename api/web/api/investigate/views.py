@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from api.db.dao.integration_dao import IntegrationDAO
 from api.db.dao.investigation_dao import InvestigationDAO
 from api.db.dao.org_dao import OrgDAO
-from api.enums import Plan
+from api.db.dao.report_dao import ReportDAO
 from api.services.ai.agent import run_investigation, stream_investigation
 from api.settings import settings
 from api.web.api.investigate.schema import (
@@ -21,36 +21,11 @@ from api.web.api.investigate.schema import (
     InvestigationResultDTO,
     InvestigationSummaryDTO,
 )
+from api.web.api.shared import check_plan_credits
 from api.web.dependencies.auth import verify_token
 from api.web.dependencies.org import OrgContext, get_org_context
 
 router = APIRouter()
-
-# Monthly investigation limits per plan; -1 = unlimited
-PLAN_LIMITS: dict[Plan, int] = {
-    Plan.FREE: 3,
-    Plan.SOLO: 50,
-    Plan.STUDIO: -1,
-}
-
-
-async def _check_plan_limit(
-    org_id: Any,
-    plan: Plan,
-    investigation_dao: InvestigationDAO,
-) -> None:
-    limit = PLAN_LIMITS.get(plan, 3)
-    if limit == -1:
-        return
-    used = await investigation_dao.count_this_month(org_id)
-    if used >= limit:
-        raise HTTPException(
-            status_code=402,
-            detail=(
-                f"Monthly investigation limit reached ({used}/{limit} on the {plan} plan). "
-                "Upgrade your plan to run more investigations."
-            ),
-        )
 
 
 @router.post("/", response_model=InvestigationResultDTO, status_code=201)
@@ -60,6 +35,7 @@ async def investigate(
     ctx: OrgContext = Depends(get_org_context),
     integration_dao: IntegrationDAO = Depends(),
     investigation_dao: InvestigationDAO = Depends(),
+    report_dao: ReportDAO = Depends(),
     org_dao: OrgDAO = Depends(),
 ) -> InvestigationResultDTO:
     """Run a churn investigation and persist the result.
@@ -69,11 +45,12 @@ async def investigate(
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO for credential lookup.
     :param investigation_dao: Injected InvestigationDAO for persistence.
+    :param report_dao: Injected ReportDAO (for cross-type credit counting).
     :param org_dao: Injected OrgDAO for business profile lookup.
     :return: Structured investigation result.
     :raises HTTPException: 400 if no integrations are connected.
     """
-    await _check_plan_limit(ctx.org_id, ctx.plan, investigation_dao)
+    await check_plan_credits(ctx.org_id, ctx.plan, investigation_dao, report_dao)
 
     integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
 
@@ -128,6 +105,7 @@ async def stream_investigate(
     ctx: OrgContext = Depends(get_org_context),
     integration_dao: IntegrationDAO = Depends(),
     investigation_dao: InvestigationDAO = Depends(),
+    report_dao: ReportDAO = Depends(),
     org_dao: OrgDAO = Depends(),
 ) -> StreamingResponse:
     """Stream an investigation as Server-Sent Events.
@@ -139,11 +117,12 @@ async def stream_investigate(
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO.
     :param investigation_dao: Injected InvestigationDAO.
+    :param report_dao: Injected ReportDAO (for cross-type credit counting).
     :param org_dao: Injected OrgDAO for business profile lookup.
     :raises HTTPException: 400 if no integrations connected.
     :return: SSE StreamingResponse.
     """
-    await _check_plan_limit(ctx.org_id, ctx.plan, investigation_dao)
+    await check_plan_credits(ctx.org_id, ctx.plan, investigation_dao, report_dao)
 
     integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
     if not integrations:

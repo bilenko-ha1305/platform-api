@@ -9,6 +9,7 @@ from api.web.api import (
     monitoring,
     organizations,
     redis,
+    reports,
     users,
 )
 
@@ -28,3 +29,4 @@ api_router.include_router(
     investigate.router, prefix="/investigate", tags=["investigate"]
 )
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])

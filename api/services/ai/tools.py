@@ -163,5 +163,73 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
     )
 
 
+def build_report_system_prompt(
+    date_from: str,
+    date_to: str,
+    business_profile: dict[str, Any] | None = None,
+) -> str:
+    """Build a system prompt for period-based revenue and churn report generation."""
+    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+
+    biz_section = ""
+    if business_profile:
+        lines: list[str] = []
+        if desc := business_profile.get("description"):
+            lines.append(f"Product description: {desc}")
+        if bm := business_profile.get("business_model"):
+            label = {
+                BusinessModel.B2B: "B2B (business customers)",
+                BusinessModel.B2C: "B2C (consumer)",
+                BusinessModel.BOTH: "B2B + B2C",
+            }.get(BusinessModel(bm), bm)
+            lines.append(f"Business model: {label}")
+        if launched := business_profile.get("launched_at"):
+            lines.append(f"Product launched: {launched}")
+        if lines:
+            biz_section = "## About this business\n" + "\n".join(lines) + "\n\n"
+
+    return (
+        f"You are Revelio, an AI revenue analyst. Today is {today}.\n\n"
+        f"{biz_section}"
+        f"## Report period\n"
+        f"Generate a comprehensive revenue and churn report for: **{date_from} to {date_to}**.\n\n"
+        "## Your job\n"
+        "Use all available tools to pull data for the exact report period above, "
+        "then produce a structured analysis covering MRR, churn, and growth.\n\n"
+        "## Report process\n"
+        "1. Call get_stripe_cancellations with start_date and end_date set to the report period.\n"
+        "2. Call get_stripe_mrr_timeline to understand the MRR trend.\n"
+        "3. If PostHog is connected, call get_posthog_feature_usage for the period.\n"
+        "4. Synthesise all data into a clear period report with specific numbers.\n\n"
+        "## Rules\n"
+        "- Always cite exact numbers and percentages.\n"
+        "- If data is missing or a tool returned an error, state what could not be checked.\n"
+        "- Never invent data points — only use what the tools returned.\n\n"
+        "## Output format\n"
+        "Always respond with valid JSON in this exact shape:\n"
+        "{\n"
+        f'  "title": "Revenue Report: {date_from} – {date_to}",\n'
+        '  "executive_summary": "2-3 sentence overview of the period",\n'
+        '  "mrr_overview": {\n'
+        '    "start_mrr": <number or null>,\n'
+        '    "end_mrr": <number or null>,\n'
+        '    "net_change": <number or null>\n'
+        "  },\n"
+        '  "churn_analysis": {\n'
+        '    "total_churned": <number>,\n'
+        '    "mrr_lost": <number or null>,\n'
+        '    "top_reasons": ["reason 1", "reason 2"]\n'
+        "  },\n"
+        '  "growth_analysis": {\n'
+        '    "new_subscriptions": <number>,\n'
+        '    "upgrades": <number>\n'
+        "  },\n"
+        '  "key_findings": ["Finding with numbers 1", "Finding with numbers 2"],\n'
+        '  "recommendations": ["Actionable recommendation 1", "Actionable recommendation 2"],\n'
+        '  "confidence": "high | medium | low"\n'
+        "}\n"
+    )
+
+
 # Keep a default for backwards compatibility
 SYSTEM_PROMPT = build_system_prompt()
