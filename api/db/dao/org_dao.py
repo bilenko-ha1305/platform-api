@@ -6,6 +6,7 @@ import re
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import Depends
 from sqlalchemy import delete, select, update
@@ -244,6 +245,23 @@ class OrgDAO:
             )
         )
         return list(result.scalars().all())
+
+    async def update_business_profile(
+        self, org_id: uuid.UUID, profile: dict[str, Any]
+    ) -> Organization:
+        """Persist business profile data on the organisation.
+
+        :param org_id: Organisation UUID.
+        :param profile: Business profile dict.
+        :return: Updated Organisation row.
+        """
+        result = await self.session.execute(
+            update(Organization)
+            .where(Organization.id == org_id)
+            .values(business_profile=profile)
+            .returning(Organization)
+        )
+        return result.scalar_one()
 
     async def delete_invite(self, org_id: uuid.UUID, invite_id: uuid.UUID) -> None:
         """Delete (revoke) an invite.

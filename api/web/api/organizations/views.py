@@ -11,6 +11,7 @@ from api.db.dao.org_dao import OrgDAO
 from api.db.dao.user_dao import UserDAO
 from api.db.models.org_model import Organization
 from api.web.api.organizations.schema import (
+    BusinessProfileDTO,
     InviteCreateDTO,
     InviteDTO,
     MemberDTO,
@@ -44,6 +45,7 @@ async def _build_org_dto(org: Organization, org_dao: OrgDAO) -> OrgDTO:
         slug=org.slug,
         plan=org.plan,
         has_billing=org.stripe_customer_id is not None,
+        business_profile=org.business_profile,
         members=members,
         pending_invites=[InviteDTO.model_validate(i) for i in pending_invites],
     )
@@ -113,6 +115,23 @@ async def update_plan(
     if ctx.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     org = await org_dao.update_plan(ctx.org_id, body.plan)
+    return await _build_org_dto(org, org_dao)
+
+
+@router.patch("/business-profile", response_model=OrgDTO)
+async def update_business_profile(
+    body: BusinessProfileDTO,
+    ctx: OrgContext = Depends(get_org_context),
+    org_dao: OrgDAO = Depends(),
+) -> OrgDTO:
+    """Save the organisation's business profile.
+
+    :param body: Product description, business model, and launch date.
+    :param ctx: Resolved org context.
+    :param org_dao: Injected OrgDAO.
+    :return: Updated OrgDTO.
+    """
+    org = await org_dao.update_business_profile(ctx.org_id, body.model_dump())
     return await _build_org_dto(org, org_dao)
 
 

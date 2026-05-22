@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,6 +35,9 @@ class Organization(Base):
     )
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True
+    )
+    business_profile: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()

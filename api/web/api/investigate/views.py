@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from api.db.dao.integration_dao import IntegrationDAO
 from api.db.dao.investigation_dao import InvestigationDAO
+from api.db.dao.org_dao import OrgDAO
 from api.services.ai.agent import run_investigation, stream_investigation
 from api.settings import settings
 from api.web.api.investigate.schema import (
@@ -31,6 +32,7 @@ async def investigate(
     ctx: OrgContext = Depends(get_org_context),
     integration_dao: IntegrationDAO = Depends(),
     investigation_dao: InvestigationDAO = Depends(),
+    org_dao: OrgDAO = Depends(),
 ) -> InvestigationResultDTO:
     """Run a churn investigation and persist the result.
 
@@ -39,6 +41,7 @@ async def investigate(
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO for credential lookup.
     :param investigation_dao: Injected InvestigationDAO for persistence.
+    :param org_dao: Injected OrgDAO for business profile lookup.
     :return: Structured investigation result.
     :raises HTTPException: 400 if no integrations are connected.
     """
@@ -53,12 +56,14 @@ async def investigate(
             ),
         )
 
+    org = await org_dao.get_by_id(ctx.org_id)
     result = await run_investigation(
         question=body.question,
         integrations=integrations,
         model=settings.ai_model,
         api_key=settings.ai_api_key,
         base_url=settings.ai_base_url,
+        business_profile=org.business_profile if org else None,
     )
 
     sources_used: list[str] = result.pop("sources_used", [])
@@ -93,6 +98,7 @@ async def stream_investigate(
     ctx: OrgContext = Depends(get_org_context),
     integration_dao: IntegrationDAO = Depends(),
     investigation_dao: InvestigationDAO = Depends(),
+    org_dao: OrgDAO = Depends(),
 ) -> StreamingResponse:
     """Stream an investigation as Server-Sent Events.
 
@@ -103,6 +109,7 @@ async def stream_investigate(
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO.
     :param investigation_dao: Injected InvestigationDAO.
+    :param org_dao: Injected OrgDAO for business profile lookup.
     :raises HTTPException: 400 if no integrations connected.
     :return: SSE StreamingResponse.
     """
@@ -113,6 +120,9 @@ async def stream_investigate(
             detail="Connect at least one integration before investigating.",
         )
 
+    org = await org_dao.get_by_id(ctx.org_id)
+    business_profile = org.business_profile if org else None
+
     async def _generate() -> AsyncGenerator[str, None]:
         result_data: dict[str, Any] | None = None
         async for event in stream_investigation(
@@ -121,6 +131,7 @@ async def stream_investigate(
             model=settings.ai_model,
             api_key=settings.ai_api_key,
             base_url=settings.ai_base_url,
+            business_profile=business_profile,
         ):
             if event["type"] == "result":
                 result_data = event["data"]

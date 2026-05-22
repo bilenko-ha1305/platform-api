@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -45,6 +46,14 @@ class InviteDTO(BaseModel):
     accepted_at: datetime | None = None
 
 
+class BusinessProfileDTO(BaseModel):
+    """Request body to set the organisation's business profile."""
+
+    description: str = Field(max_length=500)
+    business_model: str = Field(pattern="^(b2b|b2c|both)$")
+    launched_at: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")  # YYYY-MM
+
+
 class OrgDTO(BaseModel):
     """Full organisation response including members and pending invites."""
 
@@ -53,6 +62,7 @@ class OrgDTO(BaseModel):
     slug: str
     plan: str
     has_billing: bool  # True if a Stripe customer record exists
+    business_profile: dict[str, Any] | None = None
     members: list[MemberDTO]
     pending_invites: list[InviteDTO]
 

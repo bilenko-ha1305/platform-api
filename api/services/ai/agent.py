@@ -74,12 +74,26 @@ async def _execute_tool(
     return {"error": f"Unknown tool: {tool_name}"}
 
 
+def _business_context(business_profile: dict[str, Any] | None) -> str:
+    if not business_profile:
+        return ""
+    parts = []
+    if desc := business_profile.get("description"):
+        parts.append(f"Product: {desc}")
+    if model := business_profile.get("business_model"):
+        parts.append(f"Business model: {model.upper()}")
+    if launched := business_profile.get("launched_at"):
+        parts.append(f"Launched: {launched}")
+    return "\n".join(parts)
+
+
 async def stream_investigation(
     question: str,
     integrations: dict[str, dict[str, Any]],
     model: str,
     api_key: str,
     base_url: str = "https://models.github.ai/inference",
+    business_profile: dict[str, Any] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Stream an investigation as SSE-ready event dicts.
 
@@ -90,12 +104,15 @@ async def stream_investigation(
     """
     client = _client(api_key=api_key, base_url=base_url)
     connected = list(integrations.keys())
+    biz_ctx = _business_context(business_profile)
+    user_content = (
+        f"{biz_ctx}\n\nConnected integrations: {connected}\n\nQuestion: {question}"
+        if biz_ctx
+        else f"Connected integrations: {connected}\n\nQuestion: {question}"
+    )
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": f"Connected integrations: {connected}\n\nQuestion: {question}",
-        },
+        {"role": "user", "content": user_content},
     ]
 
     available_tools = [
@@ -196,6 +213,7 @@ async def run_investigation(
     model: str,
     api_key: str,
     base_url: str = "https://models.github.ai/inference",
+    business_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Non-streaming wrapper around stream_investigation."""
     result: dict[str, Any] = {}
@@ -205,6 +223,7 @@ async def run_investigation(
         model=model,
         api_key=api_key,
         base_url=base_url,
+        business_profile=business_profile,
     ):
         if event["type"] == "result":
             result = event["data"]
