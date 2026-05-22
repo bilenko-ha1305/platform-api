@@ -71,6 +71,67 @@ async def get_cancellations(
     return results
 
 
+async def get_subscription_history(
+    api_key: str,
+    days_back: int = 730,
+) -> list[dict[str, Any]]:
+    """Fetch all subscriptions (any status) sorted oldest-first.
+
+    :param api_key: Stripe restricted API key.
+    :param days_back: How far back to search (default 2 years).
+    :return: List of subscription records ordered by created ascending.
+    """
+    since_ts = int((datetime.now(tz=UTC) - timedelta(days=days_back)).timestamp())
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.get(
+            "https://api.stripe.com/v1/subscriptions",
+            params={
+                "status": "all",
+                "limit": 100,
+                "created[gte]": since_ts,
+                "expand[]": "data.customer",
+            },
+            auth=(api_key, ""),
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    results: list[dict[str, Any]] = []
+    for sub in data.get("data", []):
+        customer = sub.get("customer", {})
+        items = sub.get("items", {}).get("data", [])
+        plan_amount: float | None = None
+        plan_name: str | None = None
+        if items:
+            plan_amount = items[0].get("plan", {}).get("amount", 0) / 100
+            plan_name = items[0].get("plan", {}).get("nickname")
+
+        cust_email = customer.get("email") if isinstance(customer, dict) else None
+        cust_name = customer.get("name") if isinstance(customer, dict) else None
+        created_ts = sub.get("created")
+        created_date = (
+            datetime.fromtimestamp(created_ts, tz=UTC).strftime("%Y-%m-%d")
+            if created_ts
+            else None
+        )
+        results.append(
+            {
+                "subscription_id": sub.get("id"),
+                "customer_email": cust_email,
+                "customer_name": cust_name,
+                "plan_name": plan_name,
+                "mrr": plan_amount,
+                "status": sub.get("status"),
+                "created_at": created_date,
+                "created_timestamp": created_ts,
+            }
+        )
+
+    results.sort(key=lambda x: x.get("created_timestamp") or 0)
+    return results
+
+
 async def get_mrr_timeline(
     api_key: str,
     days: int = 30,

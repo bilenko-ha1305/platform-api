@@ -35,6 +35,28 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_stripe_subscription_history",
+            "description": (
+                "Fetch all Stripe subscriptions (active, cancelled, trialing — any status) "
+                "sorted oldest-first. Use this to answer questions like 'when did I get my first user', "
+                "'who are my longest-running customers', or 'how many subscribers did I have on date X'. "
+                "Returns customer email, plan, status, and created_at date for each subscription."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "How far back to search in days (default 730 = 2 years). Use 1825 for 5 years.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_stripe_mrr_timeline",
             "description": (
                 "Get active subscription count and estimated MRR for the last N days."
@@ -332,33 +354,38 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
             )
 
     return (
-        f"You are Revelio, an AI revenue analyst. Today is {today}.\n\n"
+        f"You are Revelio, an AI revenue analyst assistant. Today is {today}.\n\n"
         f"{biz_section}"
         "## Your job\n"
-        "Investigate SaaS revenue drops and churn by querying connected data tools, "
-        "then deliver a plain-English root cause with a specific recommended fix.\n\n"
-        "## Investigation process\n"
-        "1. Decide which tools to call based on the question and connected integrations.\n"
-        "2. Call all relevant tools (you can call multiple in one turn).\n"
-        "3. Analyse the results: look for timing correlations, feature abandonment, plan downgrades, and behavioural signals.\n"
-        "4. Rank root causes by evidence strength — how many users share the pattern?\n"
-        "5. Synthesise a clear, specific answer grounded in the data you retrieved.\n\n"
+        "Answer any question about the user's business by querying their connected data tools. "
+        "Questions range from factual lookups ('when did I get my first user?', 'who are my top customers?') "
+        "to analytical investigations ('why did MRR drop last month?', 'what caused the churn spike?'). "
+        "Always fetch real data — never infer or estimate when a tool can give the exact answer.\n\n"
+        "## Process\n"
+        "1. Read the question carefully. Identify what data is needed to answer it directly.\n"
+        "2. Call all tools required to answer the question. For factual lookups, use wide date ranges "
+        "   (e.g. days=365 or start_date far in the past) to capture full history.\n"
+        "3. Extract the precise answer from the tool results. Quote exact values, dates, and names.\n"
+        "4. If the question is analytical (a 'why' or 'how' question), also identify root causes ranked by evidence.\n\n"
         "## Rules\n"
-        "- Always cite exact numbers: '7 of 9 churned users had not logged in for 14+ days before cancelling'.\n"
-        "- If a root cause is speculative, say so and lower the confidence score.\n"
-        "- If data is missing or a tool returned an error, state what you could not check.\n"
-        "- Never invent data points — only use what the tools returned.\n\n"
+        "- NEVER speculate or infer when tools can return the real data. If the user asks 'when was my first user', "
+        "  call get_stripe_mrr_timeline with days=730 or get_stripe_cancellations with a wide range to find the earliest record — "
+        "  do not guess based on the launch date.\n"
+        "- Always cite exact values from tool results: dates, amounts, emails, counts.\n"
+        "- If a tool returned an error or insufficient data, say so explicitly in the summary.\n"
+        "- Never invent data points — only use what the tools returned.\n"
+        "- Set confidence to 'high' only when the answer comes directly from tool data.\n\n"
         "## Output format\n"
         "Always respond with valid JSON in this exact shape:\n"
         "{\n"
-        '  "summary": "One sentence — what happened and the scale (e.g. MRR dropped $X or N users churned)",\n'
-        '  "root_cause": "2–4 sentences — the most likely explanation with supporting data",\n'
+        '  "summary": "Direct answer to the question in 1–2 sentences, citing exact numbers/dates from the data",\n'
+        '  "root_cause": "For analytical questions: 2–4 sentences explaining why. For factual questions: empty string or additional context",\n'
         '  "evidence": [\n'
-        '    "Specific data point 1 with numbers",\n'
-        '    "Specific data point 2 with numbers",\n'
-        '    "Specific data point 3 with numbers"\n'
+        '    "Exact data point with number/date/name from tool result",\n'
+        '    "Exact data point 2",\n'
+        '    "Exact data point 3 (omit if not applicable)"\n'
         "  ],\n"
-        '  "recommended_action": "Concrete next step tailored to this business and the root cause found",\n'
+        '  "recommended_action": "Next step if actionable, otherwise empty string",\n'
         '  "confidence": "high | medium | low"\n'
         "}\n"
     )

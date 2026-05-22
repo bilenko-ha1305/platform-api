@@ -37,6 +37,11 @@ async def _execute_stripe(
             start_date=tool_args["start_date"],
             end_date=tool_args["end_date"],
         )
+    if tool_name == "get_stripe_subscription_history":
+        return await stripe_service.get_subscription_history(
+            api_key=creds["api_key"],
+            days_back=tool_args.get("days_back", 730),
+        )
     return await stripe_service.get_mrr_timeline(
         api_key=creds["api_key"],
         days=tool_args.get("days", 30),
