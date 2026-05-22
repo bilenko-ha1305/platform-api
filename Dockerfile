@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.11.7-python3.13-trixie AS uv
+FROM ghcr.io/astral-sh/uv:0.11.7 AS uv
 
 # -----------------------------------
 # STAGE 1: prod stage
