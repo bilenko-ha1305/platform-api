@@ -24,6 +24,32 @@ from api.web.dependencies.org import OrgContext, get_org_context
 
 router = APIRouter()
 
+# Monthly investigation limits per plan; -1 = unlimited
+PLAN_LIMITS: dict[str, int] = {
+    "free": 3,
+    "solo": 50,
+    "studio": -1,
+}
+
+
+async def _check_plan_limit(
+    org_id: Any,
+    plan: str,
+    investigation_dao: InvestigationDAO,
+) -> None:
+    limit = PLAN_LIMITS.get(plan, 3)
+    if limit == -1:
+        return
+    used = await investigation_dao.count_this_month(org_id)
+    if used >= limit:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Monthly investigation limit reached ({used}/{limit} on the {plan} plan). "
+                "Upgrade your plan to run more investigations."
+            ),
+        )
+
 
 @router.post("/", response_model=InvestigationResultDTO, status_code=201)
 async def investigate(
@@ -45,6 +71,8 @@ async def investigate(
     :return: Structured investigation result.
     :raises HTTPException: 400 if no integrations are connected.
     """
+    await _check_plan_limit(ctx.org_id, ctx.plan, investigation_dao)
+
     integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
 
     if not integrations:
@@ -113,6 +141,8 @@ async def stream_investigate(
     :raises HTTPException: 400 if no integrations connected.
     :return: SSE StreamingResponse.
     """
+    await _check_plan_limit(ctx.org_id, ctx.plan, investigation_dao)
+
     integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
     if not integrations:
         raise HTTPException(

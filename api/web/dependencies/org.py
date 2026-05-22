@@ -17,7 +17,8 @@ class OrgContext:
     """Resolved organisation membership context for the current request."""
 
     org_id: uuid.UUID
-    role: str  # "admin" | "member"
+    role: str   # "admin" | "member"
+    plan: str   # "free" | "solo" | "studio"
 
 
 async def get_org_context(
@@ -29,7 +30,7 @@ async def get_org_context(
     :param user_payload: Decoded JWT claims.
     :param org_dao: Injected OrgDAO.
     :raises HTTPException: 403 if user has no organisation.
-    :return: OrgContext with org_id and role.
+    :return: OrgContext with org_id, role, and plan.
     """
     member = await org_dao.get_membership(user_payload["sub"])
     if not member:
@@ -37,4 +38,6 @@ async def get_org_context(
             status_code=403,
             detail="No organisation found. Create or join one first.",
         )
-    return OrgContext(org_id=member.org_id, role=member.role)
+    org = await org_dao.get_by_id(member.org_id)
+    plan = org.plan if org else "free"
+    return OrgContext(org_id=member.org_id, role=member.role, plan=plan)

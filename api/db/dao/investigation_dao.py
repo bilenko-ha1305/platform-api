@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.dependencies import get_db_session
@@ -49,6 +50,22 @@ class InvestigationDAO:
         self.session.add(investigation)
         await self.session.flush()
         return investigation
+
+    async def count_this_month(self, org_id: uuid.UUID) -> int:
+        """Count investigations run by this org in the current calendar month.
+
+        :param org_id: Organisation UUID.
+        :return: Count of investigations since the start of this month.
+        """
+        now = datetime.now(tz=UTC)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        result = await self.session.execute(
+            select(func.count()).where(
+                Investigation.org_id == org_id,
+                Investigation.created_at >= month_start,
+            )
+        )
+        return result.scalar_one()
 
     async def list_for_org(
         self,
