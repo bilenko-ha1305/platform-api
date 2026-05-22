@@ -297,6 +297,22 @@ async def revoke_invite(
     await org_dao.delete_invite(ctx.org_id, invite.id)
 
 
+@router.delete("/me", status_code=204)
+async def delete_org(
+    ctx: OrgContext = Depends(get_org_context),
+    org_dao: OrgDAO = Depends(),
+) -> None:
+    """Permanently delete the organisation and all its data (admin only).
+
+    :param ctx: Resolved org context.
+    :param org_dao: Injected OrgDAO.
+    :raises HTTPException: 403 if caller is not admin.
+    """
+    if ctx.role != OrgRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    await org_dao.delete_org(ctx.org_id)
+
+
 @router.delete("/members/{member_auth0_id}", status_code=204)
 async def remove_member(
     member_auth0_id: str,

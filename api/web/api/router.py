@@ -10,6 +10,7 @@ from api.web.api import (
     organizations,
     redis,
     reports,
+    scheduled_reports,
     users,
 )
 
@@ -30,3 +31,6 @@ api_router.include_router(
 )
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(
+    scheduled_reports.router, prefix="/scheduled-reports", tags=["scheduled-reports"]
+)

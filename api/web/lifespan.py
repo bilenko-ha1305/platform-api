@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.services.redis.lifespan import init_redis, shutdown_redis
+from api.services.scheduler import start_scheduler, stop_scheduler
 from api.settings import settings
 
 
@@ -46,7 +47,10 @@ async def lifespan_setup(
     init_redis(app)
     app.middleware_stack = app.build_middleware_stack()
 
-    yield
-    await app.state.db_engine.dispose()
+    start_scheduler(app.state.db_session_factory)
 
+    yield
+
+    stop_scheduler()
+    await app.state.db_engine.dispose()
     await shutdown_redis(app)

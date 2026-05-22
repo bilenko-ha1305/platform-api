@@ -263,6 +263,15 @@ class OrgDAO:
         )
         return result.scalar_one()
 
+    async def delete_org(self, org_id: uuid.UUID) -> None:
+        """Delete an organisation and all its associated data (CASCADE).
+
+        :param org_id: Organisation UUID.
+        """
+        await self.session.execute(
+            delete(Organization).where(Organization.id == org_id)
+        )
+
     async def delete_invite(self, org_id: uuid.UUID, invite_id: uuid.UUID) -> None:
         """Delete (revoke) an invite.
 
