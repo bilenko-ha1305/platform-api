@@ -7,7 +7,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from api.db.dao.investigation_dao import InvestigationDAO
 from api.db.dao.org_dao import OrgDAO
+from api.db.dao.report_dao import ReportDAO
 from api.db.dao.user_dao import UserDAO
 from api.db.models.org_model import Organization
 from api.enums import OrgRole
@@ -20,7 +22,9 @@ from api.web.api.organizations.schema import (
     OrgDTO,
     OrgUpdatePlanDTO,
     PublicInviteDTO,
+    UsageDTO,
 )
+from api.web.api.shared import PLAN_LIMITS, REPORT_COST
 from api.web.dependencies.auth import verify_token
 from api.web.dependencies.org import OrgContext, get_org_context
 
@@ -97,6 +101,39 @@ async def get_my_org(
     if org is None:
         raise HTTPException(status_code=404, detail="Organisation not found")
     return await _build_org_dto(org, org_dao)
+
+
+@router.get("/usage", response_model=UsageDTO)
+async def get_usage(
+    ctx: OrgContext = Depends(get_org_context),
+    investigation_dao: InvestigationDAO = Depends(),
+    report_dao: ReportDAO = Depends(),
+) -> UsageDTO:
+    """Return current-month credit usage for the organisation.
+
+    :param ctx: Resolved org context.
+    :param investigation_dao: Injected InvestigationDAO.
+    :param report_dao: Injected ReportDAO.
+    :return: UsageDTO with counts and limit.
+    """
+    inv = await investigation_dao.count_this_month(ctx.org_id)
+    rep = await report_dao.count_this_month(ctx.org_id)
+    credits_used = inv + rep * REPORT_COST
+    limit = PLAN_LIMITS.get(ctx.plan, 3)
+
+    now = datetime.now(tz=UTC)
+    if now.month == 12:
+        reset_date = now.replace(year=now.year + 1, month=1, day=1).strftime("%Y-%m-%d")
+    else:
+        reset_date = now.replace(month=now.month + 1, day=1).strftime("%Y-%m-%d")
+
+    return UsageDTO(
+        investigations_used=inv,
+        reports_used=rep,
+        credits_used=credits_used,
+        credits_limit=limit,
+        reset_date=reset_date,
+    )
 
 
 @router.patch("/plan", response_model=OrgDTO)

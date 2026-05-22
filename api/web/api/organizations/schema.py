@@ -75,6 +75,16 @@ class OrgUpdatePlanDTO(BaseModel):
     plan: Plan
 
 
+class UsageDTO(BaseModel):
+    """Current-month credit usage for the organisation."""
+
+    investigations_used: int
+    reports_used: int
+    credits_used: int
+    credits_limit: int  # -1 = unlimited
+    reset_date: str  # ISO date of the first day of next month
+
+
 class PublicInviteDTO(BaseModel):
     """Public invite details shown before accepting (no auth required)."""
 
