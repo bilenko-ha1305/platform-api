@@ -225,6 +225,66 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_vercel_deployments",
+            "description": (
+                "Fetch recent Vercel deployments with their state (READY/ERROR/CANCELED). "
+                "Use to correlate broken deploys with churn or support spikes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of deployment history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_vercel_failed_deployments",
+            "description": (
+                "Return only Vercel deployments that errored or were cancelled. "
+                "High failure rates often precede user complaints and churn."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of history to scan (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_vercel_deployment_logs",
+            "description": (
+                "Fetch stderr/error log lines for a specific Vercel deployment. "
+                "Call after get_vercel_failed_deployments to inspect what went wrong."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "deployment_id": {
+                        "type": "string",
+                        "description": "Vercel deployment UID (e.g. dpl_xxx).",
+                    },
+                },
+                "required": ["deployment_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_github_releases",
             "description": (
                 "Fetch the most recent GitHub releases/tags. Useful for pinpointing "

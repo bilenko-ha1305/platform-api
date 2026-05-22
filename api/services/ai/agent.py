@@ -18,6 +18,7 @@ from api.services.integrations import (
     paypal_service,
     posthog_service,
     stripe_service,
+    vercel_service,
 )
 
 
@@ -122,6 +123,32 @@ async def _execute_tool(
             days_back=tool_args.get("days_back", 30),
         )
 
+    if tool_name.startswith("get_vercel"):
+        creds = integrations.get("vercel", {})
+        if not creds:
+            return {"error": "Vercel not connected"}
+        team_id = creds.get("team_id") or None
+        project_id = creds.get("project_id") or None
+        if tool_name == "get_vercel_deployments":
+            return await vercel_service.get_deployments(
+                token=creds["token"],
+                team_id=team_id,
+                project_id=project_id,
+                days_back=tool_args.get("days_back", 30),
+            )
+        if tool_name == "get_vercel_failed_deployments":
+            return await vercel_service.get_failed_deployments(
+                token=creds["token"],
+                team_id=team_id,
+                project_id=project_id,
+                days_back=tool_args.get("days_back", 30),
+            )
+        return await vercel_service.get_deployment_logs(
+            token=creds["token"],
+            deployment_id=tool_args["deployment_id"],
+            team_id=team_id,
+        )
+
     if tool_name.startswith("get_github"):
         creds = integrations.get("github", {})
         if not creds:
@@ -224,6 +251,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Mailchimp data…"}
         if any("github" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching GitHub activity…"}
+        if any("vercel" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Vercel deployments…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)

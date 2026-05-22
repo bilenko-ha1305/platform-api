@@ -78,6 +78,8 @@ async def stream_report(
             yield {"type": "status", "message": "Fetching Mailchimp data…"}
         if any("github" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching GitHub activity…"}
+        if any("vercel" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Vercel deployments…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
