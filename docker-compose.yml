@@ -32,7 +32,7 @@ services:
       - .:/app/src/
 
   db:
-    image: postgres:18.3-trixie
+    image: postgres:latest
     hostname: api-db
     ports:
       - "5433:5432"
