@@ -46,8 +46,8 @@ async def create_checkout(
         org_id=str(ctx.org_id),
         plan=body.plan,
         customer_id=org.stripe_customer_id,
-        success_url=(f"{settings.app_base_url}/dashboard/settings?billing=success"),
-        cancel_url=(f"{settings.app_base_url}/dashboard/settings?billing=canceled"),
+        success_url=(f"{settings.app_base_url}/dashboard/billing?billing=success"),
+        cancel_url=(f"{settings.app_base_url}/dashboard/billing?billing=canceled"),
     )
     return CheckoutResponseDTO(url=url)
 
@@ -72,7 +72,7 @@ async def create_portal(
 
     url = await stripe_billing.create_portal_session(
         customer_id=org.stripe_customer_id,
-        return_url=f"{settings.app_base_url}/dashboard/settings",
+        return_url=f"{settings.app_base_url}/dashboard/billing",
     )
     return PortalResponseDTO(url=url)
 
