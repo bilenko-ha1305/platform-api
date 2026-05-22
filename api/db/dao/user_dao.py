@@ -30,12 +30,13 @@ class UserDAO:
         :param name: Display name from social login.
         :return: The persisted User instance.
         """
+        email_val: str | None = email.strip() or None
         stmt = (
             insert(User)
-            .values(auth0_id=auth0_id, email=email, name=name)
+            .values(auth0_id=auth0_id, email=email_val, name=name)
             .on_conflict_do_update(
                 index_elements=["auth0_id"],
-                set_={"email": email, "name": name},
+                set_={"email": email_val, "name": name},
             )
             .returning(User)
         )

@@ -16,7 +16,7 @@ class User(Base):
     __tablename__ = "users"
 
     auth0_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(254), unique=True, nullable=True)
     name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="free")
     stripe_customer_id: Mapped[str | None] = mapped_column(String(128), nullable=True)

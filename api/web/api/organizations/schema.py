@@ -19,7 +19,7 @@ class MemberDTO(BaseModel):
     """A single organisation member with user profile."""
 
     user_auth0_id: str
-    email: str
+    email: str | None
     name: str | None
     role: str
     joined_at: datetime
