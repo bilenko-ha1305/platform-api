@@ -57,9 +57,10 @@ class Settings(BaseSettings):
     auth0_domain: str = ""
     auth0_audience: str = ""
 
-    # AI model configuration (LiteLLM format, e.g. "anthropic/claude-sonnet-4-6")
-    ai_model: str = "anthropic/claude-sonnet-4-6"
-    ai_api_key: str = ""
+    # AI model configuration (OpenAI-compatible)
+    ai_model: str = "openai/gpt-5-nano"
+    ai_api_key: str = ""  # GitHub token or provider API key
+    ai_base_url: str = "https://models.github.ai/inference"
 
     # Fernet key for encrypting integration credentials
     encryption_key: str = ""

@@ -1,4 +1,4 @@
-"""Revelio AI investigation agent using LiteLLM."""
+"""Revelio AI investigation agent using the OpenAI SDK."""
 
 from __future__ import annotations
 
@@ -6,12 +6,14 @@ import asyncio
 import json
 from typing import Any
 
-import litellm
+from openai import AsyncOpenAI
 
 from api.services.ai.tools import SYSTEM_PROMPT, TOOLS
 from api.services.integrations import posthog_service, stripe_service
 
-litellm.drop_params = True
+
+def _client(api_key: str, base_url: str) -> AsyncOpenAI:
+    return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
 async def _execute_stripe(
@@ -19,7 +21,6 @@ async def _execute_stripe(
     tool_args: dict[str, Any],
     creds: dict[str, Any],
 ) -> Any:
-    """Run a Stripe tool call."""
     if tool_name == "get_stripe_cancellations":
         return await stripe_service.get_cancellations(
             api_key=creds["api_key"],
@@ -37,7 +38,6 @@ async def _execute_posthog(
     tool_args: dict[str, Any],
     creds: dict[str, Any],
 ) -> Any:
-    """Run a PostHog tool call."""
     if tool_name == "get_posthog_user_events":
         return await posthog_service.get_user_events(
             api_key=creds["api_key"],
@@ -84,21 +84,24 @@ async def run_investigation(
     integrations: dict[str, dict[str, Any]],
     model: str,
     api_key: str,
+    base_url: str = "https://models.github.ai/inference",
 ) -> dict[str, Any]:
     """Run a full churn investigation using the AI agent and connected tools.
 
     :param question: Natural-language question from the user.
     :param integrations: Decrypted integration credentials keyed by tool name.
-    :param model: LiteLLM model identifier (e.g. "anthropic/claude-sonnet-4-6").
-    :param api_key: API key for the selected provider.
+    :param model: OpenAI-compatible model identifier (e.g. "openai/gpt-5-nano").
+    :param api_key: API key / GitHub token for the provider.
+    :param base_url: OpenAI-compatible inference endpoint.
     :return: Structured result dict with summary, root_cause, evidence, action.
     """
+    client = _client(api_key=api_key, base_url=base_url)
     connected = list(integrations.keys())
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": (f"Connected integrations: {connected}\n\nQuestion: {question}"),
+            "content": f"Connected integrations: {connected}\n\nQuestion: {question}",
         },
     ]
 
@@ -108,37 +111,19 @@ async def run_investigation(
         if any(connected_tool in t["function"]["name"] for connected_tool in connected)
     ] or TOOLS
 
-    response = await litellm.acompletion(
+    response = await client.chat.completions.create(
         model=model,
-        api_key=api_key,
-        messages=messages,
-        tools=available_tools,
+        messages=messages,  # type: ignore[arg-type]
+        tools=available_tools,  # type: ignore[arg-type]
         tool_choice="auto",
     )
 
     assistant_message = response.choices[0].message
-    tool_calls = getattr(assistant_message, "tool_calls", None) or []
-
+    tool_calls = assistant_message.tool_calls or []
     sources_used: list[str] = []
 
     if tool_calls:
-        messages.append(
-            {
-                "role": "assistant",
-                "content": getattr(assistant_message, "content", None),
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in tool_calls
-                ],
-            }
-        )
+        messages.append(assistant_message.model_dump(exclude_unset=False))
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -163,20 +148,19 @@ async def run_investigation(
             if "posthog" in tool_name and "posthog" not in sources_used:
                 sources_used.append("posthog")
 
-        final_response = await litellm.acompletion(
+        final_response = await client.chat.completions.create(
             model=model,
-            api_key=api_key,
-            messages=messages,
-            response_format={"type": "json_object"},
+            messages=messages,  # type: ignore[arg-type]
+            response_format={"type": "json_object"},  # type: ignore[arg-type]
         )
         final_content = final_response.choices[0].message.content or "{}"
     else:
-        final_content = getattr(assistant_message, "content", None) or "{}"
+        final_content = assistant_message.content or "{}"
 
     try:
-        result: dict[str, Any] = json.loads(final_content)
+        result_dict: dict[str, Any] = json.loads(final_content)
     except json.JSONDecodeError:
-        result = {
+        result_dict = {
             "summary": "Investigation complete",
             "root_cause": final_content,
             "evidence": [],
@@ -184,5 +168,5 @@ async def run_investigation(
             "confidence": "low",
         }
 
-    result["sources_used"] = sources_used
-    return result
+    result_dict["sources_used"] = sources_used
+    return result_dict

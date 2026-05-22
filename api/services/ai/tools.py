@@ -1,4 +1,4 @@
-"""LiteLLM tool definitions for the Revelio investigation agent."""
+"""OpenAI-compatible tool definitions for the Revelio investigation agent."""
 
 from __future__ import annotations
 

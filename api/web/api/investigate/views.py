@@ -55,6 +55,7 @@ async def investigate(
         integrations=integrations,
         model=settings.ai_model,
         api_key=settings.ai_api_key,
+        base_url=settings.ai_base_url,
     )
 
     sources_used: list[str] = result.pop("sources_used", [])
