@@ -9,6 +9,7 @@ class Plan(enum.StrEnum):
     FREE = "free"
     SOLO = "solo"
     STUDIO = "studio"
+    INTERNAL = "internal"
 
 
 class OrgRole(enum.StrEnum):

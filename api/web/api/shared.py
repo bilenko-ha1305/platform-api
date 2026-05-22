@@ -17,6 +17,7 @@ PLAN_LIMITS: dict[Plan, int] = {
     Plan.FREE: 3,
     Plan.SOLO: 50,
     Plan.STUDIO: -1,
+    Plan.INTERNAL: -1,
 }
 
 
