@@ -17,11 +17,7 @@ ENV UV_NO_MANAGED_PYTHON=1
 
 WORKDIR /app/src
 
-RUN --mount=from=uv,source=/usr/local/bin/uv,target=/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-dev
+RUN uv sync --locked --no-install-project --no-dev
 
 COPY . .
 
