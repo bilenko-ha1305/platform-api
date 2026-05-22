@@ -68,6 +68,8 @@ async def stream_report(
         tool_names = {tc.function.name for tc in tool_calls}
         if any("stripe" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Stripe data…"}
+        if any("paypal" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching PayPal transactions…"}
         if any("posthog" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching PostHog events…"}
         if any("intercom" in t for t in tool_names):

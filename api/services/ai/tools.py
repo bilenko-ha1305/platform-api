@@ -181,6 +181,50 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_paypal_transactions",
+            "description": (
+                "Fetch PayPal transactions for a date range. "
+                "Returns transaction amounts, statuses, and payer emails."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start of date range in YYYY-MM-DD format.",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End of date range in YYYY-MM-DD format.",
+                    },
+                },
+                "required": ["start_date", "end_date"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_paypal_subscription_cancellations",
+            "description": (
+                "Fetch PayPal subscription cancellation events for the last N days. "
+                "Returns payer emails and cancellation dates."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_github_releases",
             "description": (
                 "Fetch the most recent GitHub releases/tags. Useful for pinpointing "

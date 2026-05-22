@@ -15,6 +15,7 @@ from api.services.integrations import (
     github_service,
     intercom_service,
     mailchimp_service,
+    paypal_service,
     posthog_service,
     stripe_service,
 )
@@ -76,6 +77,26 @@ async def _execute_tool(
         if not creds:
             return {"error": "PostHog not connected"}
         return await _execute_posthog(tool_name, tool_args, creds)
+
+    if tool_name.startswith("get_paypal"):
+        creds = integrations.get("paypal", {})
+        if not creds:
+            return {"error": "PayPal not connected"}
+        mode = creds.get("mode", "live")
+        if tool_name == "get_paypal_transactions":
+            return await paypal_service.get_transactions(
+                client_id=creds["client_id"],
+                client_secret=creds["client_secret"],
+                start_date=tool_args["start_date"],
+                end_date=tool_args["end_date"],
+                mode=mode,
+            )
+        return await paypal_service.get_subscription_cancellations(
+            client_id=creds["client_id"],
+            client_secret=creds["client_secret"],
+            days_back=tool_args.get("days_back", 30),
+            mode=mode,
+        )
 
     if tool_name.startswith("get_intercom"):
         creds = integrations.get("intercom", {})
@@ -193,6 +214,8 @@ async def stream_investigation(
         tool_names = {tc.function.name for tc in tool_calls}
         if any("stripe" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Stripe data…"}
+        if any("paypal" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching PayPal transactions…"}
         if any("posthog" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching PostHog events…"}
         if any("intercom" in t for t in tool_names):
