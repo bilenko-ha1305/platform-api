@@ -47,10 +47,12 @@ async def lifespan_setup(
     init_redis(app)
     app.middleware_stack = app.build_middleware_stack()
 
-    start_scheduler(app.state.db_session_factory)
+    if settings.enable_daily_slack_alerts:
+        start_scheduler(app.state.db_session_factory)
 
     yield
 
-    stop_scheduler()
+    if settings.enable_daily_slack_alerts:
+        stop_scheduler()
     await app.state.db_engine.dispose()
     await shutdown_redis(app)

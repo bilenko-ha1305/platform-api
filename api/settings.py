@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     stripe_price_studio: str = ""  # price_xxx from Stripe dashboard
     app_base_url: str = "http://localhost:3000"  # for Stripe redirect URLs
 
+    # Feature flags
+    enable_daily_slack_alerts: bool = True
+
     # Sentry's configuration.
     sentry_dsn: str | None = None
     sentry_sample_rate: float = 1.0
