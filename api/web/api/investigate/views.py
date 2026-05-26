@@ -21,6 +21,7 @@ from api.web.api.investigate.schema import (
     InvestigateRequestDTO,
     InvestigationResultDTO,
     InvestigationSummaryDTO,
+    TokenUsageDTO,
 )
 from api.web.api.shared import check_plan_credits
 from api.web.dependencies.auth import verify_token
@@ -80,6 +81,7 @@ async def get_conversation(
             confidence=row.result.get("confidence", "medium"),
             sources_used=row.sources_used,
             ai_model=row.ai_model,
+            token_usage=_token_usage_from_result(row.result),
             conversation_id=row.conversation_id,
             created_at=row.created_at,
         )
@@ -154,6 +156,7 @@ async def investigate(
         confidence=result.get("confidence", "medium"),
         sources_used=sources_used,
         ai_model=row.ai_model,
+        token_usage=_token_usage_from_result(result),
         conversation_id=row.conversation_id,
         created_at=row.created_at,
     )
@@ -237,6 +240,7 @@ async def stream_investigate(
                 "confidence": result_data.get("confidence", "medium"),
                 "sources_used": sources_used,
                 "ai_model": settings.ai_model,
+                "token_usage": result_data.get("token_usage"),
                 "conversation_id": str(body.conversation_id) if body.conversation_id else None,
             }
             yield f"data: {json.dumps(done_payload)}\n\n"
@@ -275,6 +279,7 @@ async def get_investigation(
         confidence=row.result.get("confidence", "medium"),
         sources_used=row.sources_used,
         ai_model=row.ai_model,
+        token_usage=_token_usage_from_result(row.result),
         conversation_id=row.conversation_id,
         created_at=row.created_at,
     )
@@ -311,6 +316,16 @@ async def list_investigations(
         )
         for row in rows
     ]
+
+
+def _token_usage_from_result(result: dict[str, Any]) -> TokenUsageDTO | None:
+    raw = result.get("token_usage")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return TokenUsageDTO(**raw)
+    except Exception:
+        return None
 
 
 async def _load_conversation_history(

@@ -259,6 +259,10 @@ async def stream_investigation(
 
     yield {"type": "status", "message": "Analysing your question…"}
 
+    # Accumulated token counts across all LLM calls in this investigation.
+    prompt_tokens = 0
+    completion_tokens = 0
+
     try:
         response = await client.chat.completions.create(  # type: ignore[call-overload]
             model=model,
@@ -275,6 +279,10 @@ async def stream_investigation(
             exc.body,
         )
         raise
+
+    if response.usage:
+        prompt_tokens += response.usage.prompt_tokens
+        completion_tokens += response.usage.completion_tokens
 
     assistant_message = response.choices[0].message
     tool_calls = assistant_message.tool_calls or []
@@ -333,6 +341,7 @@ async def stream_investigation(
                     model=model,
                     messages=messages,  # type: ignore[arg-type]
                     stream=True,
+                    stream_options={"include_usage": True},  # type: ignore[call-overload]
                 ),
             )
         except AuthenticationError as exc:
@@ -345,6 +354,10 @@ async def stream_investigation(
             )
             raise
         async for chunk in stream:
+            # Last chunk carries usage when stream_options.include_usage=True
+            if chunk.usage:
+                prompt_tokens += chunk.usage.prompt_tokens
+                completion_tokens += chunk.usage.completion_tokens
             if not chunk.choices:
                 continue
             delta = chunk.choices[0].delta.content
@@ -371,6 +384,11 @@ async def stream_investigation(
         }
 
     result_dict["sources_used"] = sources_used
+    result_dict["token_usage"] = {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
     yield {"type": "result", "data": result_dict}
 
 

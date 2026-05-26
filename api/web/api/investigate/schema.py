@@ -11,6 +11,14 @@ from pydantic import BaseModel, ConfigDict
 from api.enums import Confidence
 
 
+class TokenUsageDTO(BaseModel):
+    """Token counts for a single investigation."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
 class InvestigateRequestDTO(BaseModel):
     """Request body to start an investigation."""
 
@@ -30,6 +38,7 @@ class InvestigationResultDTO(BaseModel):
     confidence: Confidence
     sources_used: list[Any]
     ai_model: str
+    token_usage: TokenUsageDTO | None = None
     conversation_id: uuid.UUID | None
     created_at: datetime
 
