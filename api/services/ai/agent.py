@@ -227,6 +227,7 @@ async def stream_investigation(
     api_key: str,
     base_url: str = "https://models.github.ai/inference",
     business_profile: dict[str, Any] | None = None,
+    conversation_history: list[dict[str, str]] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Stream an investigation as SSE-ready event dicts.
 
@@ -239,11 +240,16 @@ async def stream_investigation(
     connected = list(integrations.keys())
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": build_system_prompt(business_profile)},
+    ]
+    for prior in conversation_history or []:
+        messages.append({"role": "user", "content": prior["question"]})
+        messages.append({"role": "assistant", "content": prior["answer"]})
+    messages.append(
         {
             "role": "user",
             "content": f"Connected integrations: {connected}\n\nQuestion: {question}",
-        },
-    ]
+        }
+    )
 
     available_tools = [
         t
@@ -375,6 +381,7 @@ async def run_investigation(
     api_key: str,
     base_url: str = "https://models.github.ai/inference",
     business_profile: dict[str, Any] | None = None,
+    conversation_history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Non-streaming wrapper around stream_investigation."""
     result: dict[str, Any] = {}
@@ -385,6 +392,7 @@ async def run_investigation(
         api_key=api_key,
         base_url=base_url,
         business_profile=business_profile,
+        conversation_history=conversation_history,
     ):
         if event["type"] == "result":
             result = event["data"]

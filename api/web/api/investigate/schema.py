@@ -15,6 +15,7 @@ class InvestigateRequestDTO(BaseModel):
     """Request body to start an investigation."""
 
     question: str
+    conversation_id: uuid.UUID | None = None
 
 
 class InvestigationResultDTO(BaseModel):
@@ -29,6 +30,7 @@ class InvestigationResultDTO(BaseModel):
     confidence: Confidence
     sources_used: list[Any]
     ai_model: str
+    conversation_id: uuid.UUID | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -41,6 +43,16 @@ class InvestigationSummaryDTO(BaseModel):
     question: str
     summary: str
     sources_used: list[Any]
+    conversation_id: uuid.UUID | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationSummaryDTO(BaseModel):
+    """One entry in the conversations sidebar."""
+
+    conversation_id: uuid.UUID
+    title: str
+    message_count: int
+    last_message_at: datetime

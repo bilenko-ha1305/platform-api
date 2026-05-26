@@ -38,6 +38,9 @@ class Investigation(Base):
         ARRAY(String(50)), nullable=False, default=list
     )
     ai_model: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True, index=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )

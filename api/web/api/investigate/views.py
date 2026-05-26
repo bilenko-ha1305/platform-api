@@ -17,6 +17,7 @@ from api.db.dao.report_dao import ReportDAO
 from api.services.ai.agent import run_investigation, stream_investigation
 from api.settings import settings
 from api.web.api.investigate.schema import (
+    ConversationSummaryDTO,
     InvestigateRequestDTO,
     InvestigationResultDTO,
     InvestigationSummaryDTO,
@@ -26,6 +27,64 @@ from api.web.dependencies.auth import verify_token
 from api.web.dependencies.org import OrgContext, get_org_context
 
 router = APIRouter()
+
+
+@router.get("/conversations", response_model=list[ConversationSummaryDTO])
+async def list_conversations(
+    ctx: OrgContext = Depends(get_org_context),
+    investigation_dao: InvestigationDAO = Depends(),
+) -> list[ConversationSummaryDTO]:
+    """Return one summary per conversation for the sidebar.
+
+    :param ctx: Resolved org context.
+    :param investigation_dao: Injected InvestigationDAO.
+    :return: List of ConversationSummaryDTO ordered by last activity desc.
+    """
+    summaries = await investigation_dao.list_conversations(org_id=ctx.org_id)
+    return [
+        ConversationSummaryDTO(
+            conversation_id=s.conversation_id,
+            title=s.title,
+            message_count=s.message_count,
+            last_message_at=s.last_message_at,
+        )
+        for s in summaries
+    ]
+
+
+@router.get("/conversations/{conversation_id}", response_model=list[InvestigationResultDTO])
+async def get_conversation(
+    conversation_id: uuid.UUID,
+    ctx: OrgContext = Depends(get_org_context),
+    investigation_dao: InvestigationDAO = Depends(),
+) -> list[InvestigationResultDTO]:
+    """Return all investigations in a conversation, oldest first.
+
+    :param conversation_id: Conversation UUID.
+    :param ctx: Resolved org context.
+    :param investigation_dao: Injected InvestigationDAO.
+    :return: Ordered list of InvestigationResultDTO.
+    """
+    rows = await investigation_dao.list_by_conversation(
+        conversation_id=conversation_id,
+        org_id=ctx.org_id,
+    )
+    return [
+        InvestigationResultDTO(
+            id=row.id,
+            question=row.question,
+            summary=row.result.get("summary", ""),
+            root_cause=row.result.get("root_cause", ""),
+            evidence=row.result.get("evidence", []),
+            recommended_action=row.result.get("recommended_action", ""),
+            confidence=row.result.get("confidence", "medium"),
+            sources_used=row.sources_used,
+            ai_model=row.ai_model,
+            conversation_id=row.conversation_id,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
 
 
 @router.post("/", response_model=InvestigationResultDTO, status_code=201)
@@ -40,7 +99,7 @@ async def investigate(
 ) -> InvestigationResultDTO:
     """Run a churn investigation and persist the result.
 
-    :param body: Natural-language investigation question.
+    :param body: Natural-language question plus optional conversation_id.
     :param user_payload: Decoded JWT claims (for created_by).
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO for credential lookup.
@@ -53,15 +112,15 @@ async def investigate(
     await check_plan_credits(ctx.org_id, ctx.plan, investigation_dao, report_dao)
 
     integrations = await integration_dao.get_decrypted(org_id=ctx.org_id)
-
     if not integrations:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Connect at least one integration "
-                "(Stripe or PostHog) before investigating."
-            ),
+            detail="Connect at least one integration (Stripe or PostHog) before investigating.",
         )
+
+    conversation_history = await _load_conversation_history(
+        body.conversation_id, ctx.org_id, investigation_dao
+    )
 
     org = await org_dao.get_by_id(ctx.org_id)
     result = await run_investigation(
@@ -71,10 +130,10 @@ async def investigate(
         api_key=settings.ai_api_key,
         base_url=settings.ai_base_url,
         business_profile=org.business_profile if org else None,
+        conversation_history=conversation_history,
     )
 
     sources_used: list[str] = result.pop("sources_used", [])
-
     row = await investigation_dao.create(
         org_id=ctx.org_id,
         created_by=user_payload["sub"],
@@ -82,6 +141,7 @@ async def investigate(
         result=result,
         sources_used=sources_used,
         ai_model=settings.ai_model,
+        conversation_id=body.conversation_id,
     )
 
     return InvestigationResultDTO(
@@ -94,6 +154,7 @@ async def investigate(
         confidence=result.get("confidence", "medium"),
         sources_used=sources_used,
         ai_model=row.ai_model,
+        conversation_id=row.conversation_id,
         created_at=row.created_at,
     )
 
@@ -112,7 +173,7 @@ async def stream_investigate(
 
     Events: status (progress), token (synthesis text), done (saved result).
 
-    :param body: Natural-language investigation question.
+    :param body: Natural-language question plus optional conversation_id.
     :param user_payload: Decoded JWT claims.
     :param ctx: Resolved org context.
     :param integration_dao: Injected IntegrationDAO.
@@ -131,6 +192,10 @@ async def stream_investigate(
             detail="Connect at least one integration before investigating.",
         )
 
+    conversation_history = await _load_conversation_history(
+        body.conversation_id, ctx.org_id, investigation_dao
+    )
+
     org = await org_dao.get_by_id(ctx.org_id)
     business_profile = org.business_profile if org else None
 
@@ -143,6 +208,7 @@ async def stream_investigate(
             api_key=settings.ai_api_key,
             base_url=settings.ai_base_url,
             business_profile=business_profile,
+            conversation_history=conversation_history,
         ):
             if event["type"] == "result":
                 result_data = event["data"]
@@ -158,6 +224,7 @@ async def stream_investigate(
                 result=result_data,
                 sources_used=sources_used,
                 ai_model=settings.ai_model,
+                conversation_id=body.conversation_id,
             )
             done_payload = {
                 "type": "done",
@@ -170,6 +237,7 @@ async def stream_investigate(
                 "confidence": result_data.get("confidence", "medium"),
                 "sources_used": sources_used,
                 "ai_model": settings.ai_model,
+                "conversation_id": str(body.conversation_id) if body.conversation_id else None,
             }
             yield f"data: {json.dumps(done_payload)}\n\n"
 
@@ -207,6 +275,7 @@ async def get_investigation(
         confidence=row.result.get("confidence", "medium"),
         sources_used=row.sources_used,
         ai_model=row.ai_model,
+        conversation_id=row.conversation_id,
         created_at=row.created_at,
     )
 
@@ -237,7 +306,32 @@ async def list_investigations(
             question=row.question,
             summary=row.result.get("summary", ""),
             sources_used=row.sources_used,
+            conversation_id=row.conversation_id,
             created_at=row.created_at,
         )
+        for row in rows
+    ]
+
+
+async def _load_conversation_history(
+    conversation_id: uuid.UUID | None,
+    org_id: uuid.UUID,
+    investigation_dao: InvestigationDAO,
+) -> list[dict[str, str]]:
+    """Load prior Q&A pairs from a conversation for AI context.
+
+    :param conversation_id: Optional conversation UUID.
+    :param org_id: Organisation UUID (ownership scoping).
+    :param investigation_dao: Injected DAO.
+    :return: List of {question, answer} dicts, oldest first.
+    """
+    if conversation_id is None:
+        return []
+    rows = await investigation_dao.list_by_conversation(conversation_id, org_id)
+    return [
+        {
+            "question": row.question,
+            "answer": row.result.get("root_cause", row.result.get("summary", "")),
+        }
         for row in rows
     ]

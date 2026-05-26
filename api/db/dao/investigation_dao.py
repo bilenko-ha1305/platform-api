@@ -14,6 +14,24 @@ from api.db.dependencies import get_db_session
 from api.db.models.investigation_model import Investigation
 
 
+class ConversationSummary:
+    """In-memory summary of a conversation (group of investigations)."""
+
+    __slots__ = ("conversation_id", "title", "message_count", "last_message_at")
+
+    def __init__(
+        self,
+        conversation_id: uuid.UUID,
+        title: str,
+        message_count: int,
+        last_message_at: datetime,
+    ) -> None:
+        self.conversation_id = conversation_id
+        self.title = title
+        self.message_count = message_count
+        self.last_message_at = last_message_at
+
+
 class InvestigationDAO:
     """Provides access to the investigations table."""
 
@@ -28,6 +46,7 @@ class InvestigationDAO:
         result: dict[str, Any],
         sources_used: list[str],
         ai_model: str,
+        conversation_id: uuid.UUID | None = None,
     ) -> Investigation:
         """Persist a completed investigation.
 
@@ -37,6 +56,7 @@ class InvestigationDAO:
         :param result: Structured result dict from the AI agent.
         :param sources_used: List of integration names used.
         :param ai_model: LiteLLM model identifier used.
+        :param conversation_id: Optional conversation UUID to group messages.
         :return: The saved Investigation row.
         """
         investigation = Investigation(
@@ -46,6 +66,7 @@ class InvestigationDAO:
             result=result,
             sources_used=sources_used,
             ai_model=ai_model,
+            conversation_id=conversation_id,
         )
         self.session.add(investigation)
         await self.session.flush()
@@ -88,6 +109,65 @@ class InvestigationDAO:
             .offset(offset)
         )
         return list(result.scalars().all())
+
+    async def list_by_conversation(
+        self,
+        conversation_id: uuid.UUID,
+        org_id: uuid.UUID,
+    ) -> list[Investigation]:
+        """Return all investigations in a conversation, oldest first.
+
+        :param conversation_id: Conversation UUID.
+        :param org_id: Organisation UUID (ownership check).
+        :return: List of Investigation rows ordered by created_at asc.
+        """
+        result = await self.session.execute(
+            select(Investigation)
+            .where(
+                Investigation.conversation_id == conversation_id,
+                Investigation.org_id == org_id,
+            )
+            .order_by(Investigation.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    async def list_conversations(
+        self,
+        org_id: uuid.UUID,
+    ) -> list[ConversationSummary]:
+        """Return one summary per conversation for an org, newest first.
+
+        :param org_id: Organisation UUID.
+        :return: List of ConversationSummary objects.
+        """
+        rows_result = await self.session.execute(
+            select(Investigation)
+            .where(
+                Investigation.org_id == org_id,
+                Investigation.conversation_id.isnot(None),
+            )
+            .order_by(Investigation.created_at.asc())
+        )
+        rows = list(rows_result.scalars().all())
+
+        conversations: dict[uuid.UUID, ConversationSummary] = {}
+        for row in rows:
+            cid = row.conversation_id  # type: ignore[assignment]
+            if cid not in conversations:
+                conversations[cid] = ConversationSummary(
+                    conversation_id=cid,
+                    title=row.question,
+                    message_count=0,
+                    last_message_at=row.created_at,
+                )
+            conversations[cid].message_count += 1
+            conversations[cid].last_message_at = row.created_at
+
+        return sorted(
+            conversations.values(),
+            key=lambda c: c.last_message_at,
+            reverse=True,
+        )
 
     async def get_by_id(
         self, investigation_id: uuid.UUID, org_id: uuid.UUID
