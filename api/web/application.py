@@ -40,7 +40,7 @@ def get_app() -> FastAPI:
             ],
         )
     app = FastAPI(
-        title="Revelio API",
+        title="Synvar API",
         lifespan=lifespan_setup,
         docs_url="/api/docs",
         redoc_url="/api/redoc",

@@ -1,4 +1,4 @@
-"""OpenAI-compatible tool definitions for the Revelio investigation agent."""
+"""OpenAI-compatible tool definitions for the Synvar investigation agent."""
 
 from __future__ import annotations
 
@@ -410,7 +410,7 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
             )
 
     return (
-        f"You are Revelio, an AI revenue analyst assistant. Today is {today}.\n\n"
+        f"You are Synvar, an AI revenue analyst assistant. Today is {today}.\n\n"
         f"{biz_section}"
         "## Your job\n"
         "Answer any question about the user's business by querying their connected data tools. "
@@ -473,7 +473,7 @@ def build_report_system_prompt(
             biz_section = "## About this business\n" + "\n".join(lines) + "\n\n"
 
     return (
-        f"You are Revelio, an AI revenue analyst. Today is {today}.\n\n"
+        f"You are Synvar, an AI revenue analyst. Today is {today}.\n\n"
         f"{biz_section}"
         f"## Report period\n"
         f"Generate a comprehensive revenue and churn report for: **{date_from} to {date_to}**.\n\n"

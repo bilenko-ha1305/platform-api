@@ -1,4 +1,4 @@
-"""Stripe billing helpers for Revelio's own subscriptions."""
+"""Stripe billing helpers for Synvar's own subscriptions."""
 
 from __future__ import annotations
 

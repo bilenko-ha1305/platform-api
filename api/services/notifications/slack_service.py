@@ -89,7 +89,7 @@ def build_blocks(report: dict[str, Any], date_from: str, date_to: str) -> list[d
         "elements": [
             {
                 "type": "mrkdwn",
-                "text": f"{_confidence_emoji(confidence)} Confidence: *{confidence}*  •  Powered by Revelio",
+                "text": f"{_confidence_emoji(confidence)} Confidence: *{confidence}*  •  Powered by Synvar",
             }
         ],
     })

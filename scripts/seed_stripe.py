@@ -191,7 +191,7 @@ def create_cancelled_subscriptions(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed Stripe test data for Revelio")
+    parser = argparse.ArgumentParser(description="Seed Stripe test data for Synvar")
     parser.add_argument(
         "--key",
         default=os.environ.get("STRIPE_SECRET_KEY", ""),

@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     # Fernet key for encrypting integration credentials
     encryption_key: str = ""
 
-    # Stripe billing (Revelio's own subscriptions)
+    # Stripe billing (Synvar's own subscriptions)
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_solo: str = ""  # price_xxx from Stripe dashboard

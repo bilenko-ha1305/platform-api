@@ -81,7 +81,7 @@ def delete_products(client: stripe.StripeClient) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Clear all Stripe test data for Revelio"
+        description="Clear all Stripe test data for Synvar"
     )
     parser.add_argument(
         "--key",

@@ -1,4 +1,4 @@
-"""Revelio AI investigation agent using the OpenAI SDK."""
+"""Synvar AI investigation agent using the OpenAI SDK."""
 
 from __future__ import annotations
 

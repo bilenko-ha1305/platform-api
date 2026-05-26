@@ -1,4 +1,4 @@
-"""Revelio AI report generator using the OpenAI SDK."""
+"""Synvar AI report generator using the OpenAI SDK."""
 
 from __future__ import annotations
 
