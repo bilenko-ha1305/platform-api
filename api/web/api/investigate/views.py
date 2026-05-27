@@ -86,6 +86,27 @@ async def get_conversation(
     ]
 
 
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(
+    conversation_id: uuid.UUID,
+    ctx: OrgContext = Depends(get_org_context),
+    investigation_dao: InvestigationDAO = Depends(),
+) -> None:
+    """Delete all investigations in a conversation.
+
+    :param conversation_id: Conversation UUID.
+    :param ctx: Resolved org context (ownership check).
+    :param investigation_dao: Injected InvestigationDAO.
+    :raises HTTPException: 404 if the conversation doesn't exist.
+    """
+    deleted = await investigation_dao.delete_conversation(
+        conversation_id=conversation_id,
+        org_id=ctx.org_id,
+    )
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+
 @router.post("/", response_model=InvestigationResultDTO, status_code=201)
 async def investigate(
     body: InvestigateRequestDTO,

@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.dependencies import get_db_session
@@ -187,3 +188,21 @@ class InvestigationDAO:
             )
         )
         return result.scalar_one_or_none()
+
+    async def delete_conversation(
+        self, conversation_id: uuid.UUID, org_id: uuid.UUID
+    ) -> int:
+        """Delete all investigations in a conversation.
+
+        :param conversation_id: Conversation UUID.
+        :param org_id: Organisation UUID (ownership check).
+        :return: Number of rows deleted.
+        """
+        cursor: CursorResult[Any] = await self.session.execute(  # type: ignore[assignment]
+            delete(Investigation).where(
+                Investigation.conversation_id == conversation_id,
+                Investigation.org_id == org_id,
+            )
+        )
+        await self.session.commit()
+        return int(cursor.rowcount)
