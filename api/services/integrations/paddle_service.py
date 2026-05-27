@@ -160,4 +160,10 @@ return { active_subscriptions: subs.length, estimated_mrr: totalMrr };
     raw = await _execute_code(api_key, environment, code)
     active = raw.get("active_subscriptions", 0) if isinstance(raw, dict) else 0
     mrr = raw.get("estimated_mrr", 0.0) if isinstance(raw, dict) else 0.0
-    return [{"period": f"last_{days}_days", "active_subscriptions": active, "estimated_mrr": mrr}]
+    return [
+        {
+            "period": f"last_{days}_days",
+            "active_subscriptions": active,
+            "estimated_mrr": mrr,
+        }
+    ]
