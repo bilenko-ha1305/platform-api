@@ -19,6 +19,7 @@ from api.services.integrations import (
     github_service,
     intercom_service,
     mailchimp_service,
+    paddle_service,
     paypal_service,
     posthog_service,
     stripe_service,
@@ -198,6 +199,25 @@ async def _execute_tool(
             for release in releases
         ]
 
+    if tool_name.startswith("get_paddle"):
+        creds = integrations.get("paddle", {})
+        if not creds:
+            return {"error": "Paddle not connected"}
+        api_key = creds.get("api_key", "")
+        environment = creds.get("environment", "live")
+        if tool_name == "get_paddle_cancellations":
+            return await paddle_service.get_cancellations(
+                api_key=api_key,
+                environment=environment,
+                start_date=tool_args["start_date"],
+                end_date=tool_args["end_date"],
+            )
+        return await paddle_service.get_subscription_overview(
+            api_key=api_key,
+            environment=environment,
+            days=tool_args.get("days", 30),
+        )
+
     if tool_name.startswith("get_chargebee"):
         creds = integrations.get("chargebee", {})
         if not creds:
@@ -331,6 +351,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
         if any("supabase" in t for t in tool_names):
             yield {"type": "status", "message": "Querying Supabase database…"}
+        if any("paddle" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Paddle billing data…"}
         if any("chargebee" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Chargebee billing data…"}
 
@@ -360,6 +382,7 @@ async def stream_investigation(
                 "github",
                 "supabase",
                 "chargebee",
+                "paddle",
             ):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
