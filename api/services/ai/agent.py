@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 from api.services.ai.tools import TOOLS, build_system_prompt
 from api.services.integrations import (
+    amplitude_service,
     chargebee_service,
     github_service,
     intercom_service,
@@ -200,6 +201,27 @@ async def _execute_tool(
             for release in releases
         ]
 
+    if tool_name.startswith("get_amplitude"):
+        creds = integrations.get("amplitude", {})
+        if not creds:
+            return {"error": "Amplitude not connected"}
+        access_token = creds.get("access_token", "")
+        project_id = creds.get("project_id", "")
+        region = creds.get("region", "us")
+        if tool_name == "get_amplitude_event_stats":
+            return await amplitude_service.get_event_stats(
+                access_token=access_token,
+                project_id=project_id,
+                region=region,
+                days_back=tool_args.get("days_back", 30),
+            )
+        return await amplitude_service.get_retention(
+            access_token=access_token,
+            project_id=project_id,
+            region=region,
+            days_back=tool_args.get("days_back", 30),
+        )
+
     if tool_name.startswith("get_mixpanel"):
         creds = integrations.get("mixpanel", {})
         if not creds:
@@ -372,6 +394,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
         if any("supabase" in t for t in tool_names):
             yield {"type": "status", "message": "Querying Supabase database…"}
+        if any("amplitude" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Amplitude analytics data…"}
         if any("mixpanel" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Mixpanel engagement data…"}
         if any("paddle" in t for t in tool_names):
@@ -407,6 +431,7 @@ async def stream_investigation(
                 "chargebee",
                 "paddle",
                 "mixpanel",
+                "amplitude",
             ):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)

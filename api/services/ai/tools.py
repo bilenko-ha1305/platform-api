@@ -322,6 +322,47 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_amplitude_event_stats",
+            "description": (
+                "Fetch daily event engagement counts across all events from Amplitude. "
+                "Use this to detect drops in product usage activity that correlate with churn."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of event history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_amplitude_retention",
+            "description": (
+                "Fetch cohort retention data from Amplitude. "
+                "Shows what percentage of users return on each subsequent day — "
+                "a falling retention curve is a leading indicator of churn."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of history to build the retention cohort from (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_mixpanel_event_counts",
             "description": (
                 "Fetch daily event engagement counts across all events from Mixpanel. "
