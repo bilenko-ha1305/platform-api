@@ -322,6 +322,50 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_chargebee_cancellations",
+            "description": (
+                "Fetch subscriptions cancelled within a date range from Chargebee. "
+                "Returns customer IDs, plan names, MRR lost, and cancellation dates."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start of date range in YYYY-MM-DD format.",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End of date range in YYYY-MM-DD format.",
+                    },
+                },
+                "required": ["start_date", "end_date"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_chargebee_subscription_overview",
+            "description": (
+                "Get active subscription count and estimated MRR from Chargebee "
+                "for the last N days."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days of history (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_supabase_tables",
             "description": (
                 "List all tables available in the user's Supabase database. "

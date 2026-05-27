@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 from api.services.ai.tools import TOOLS, build_system_prompt
 from api.services.integrations import (
+    chargebee_service,
     github_service,
     intercom_service,
     mailchimp_service,
@@ -197,6 +198,28 @@ async def _execute_tool(
             for release in releases
         ]
 
+    if tool_name.startswith("get_chargebee"):
+        creds = integrations.get("chargebee", {})
+        if not creds:
+            return {"error": "Chargebee not connected"}
+        site = creds.get("site", "")
+        api_key = creds.get("api_key", "")
+        data_center = creds.get("data_center", "us")
+        if tool_name == "get_chargebee_cancellations":
+            return await chargebee_service.get_cancellations(
+                site=site,
+                api_key=api_key,
+                data_center=data_center,
+                start_date=tool_args["start_date"],
+                end_date=tool_args["end_date"],
+            )
+        return await chargebee_service.get_subscription_overview(
+            site=site,
+            api_key=api_key,
+            data_center=data_center,
+            days=tool_args.get("days", 30),
+        )
+
     if tool_name in ("list_supabase_tables", "get_supabase_table"):
         creds = integrations.get("supabase", {})
         if not creds:
@@ -308,6 +331,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
         if any("supabase" in t for t in tool_names):
             yield {"type": "status", "message": "Querying Supabase database…"}
+        if any("chargebee" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Chargebee billing data…"}
 
         async def _call(tc: Any) -> tuple[str, Any]:
             args = json.loads(tc.function.arguments)
@@ -327,7 +352,7 @@ async def stream_investigation(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase"):
+            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase", "chargebee"):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
 
