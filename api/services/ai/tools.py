@@ -322,6 +322,42 @@ TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_mixpanel_event_counts",
+            "description": (
+                "Fetch daily event engagement counts across all events from Mixpanel. "
+                "Use this to detect drops in product usage that correlate with churn spikes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days_back": {
+                        "type": "integer",
+                        "description": "Days of event history to fetch (default 30).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_mixpanel_top_events",
+            "description": (
+                "List all tracked events in Mixpanel with their metadata. "
+                "Call this to understand which features and actions are instrumented "
+                "before running deeper engagement queries."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_paddle_cancellations",
             "description": (
                 "Fetch subscriptions cancelled within a date range from Paddle. "

@@ -19,6 +19,7 @@ from api.services.integrations import (
     github_service,
     intercom_service,
     mailchimp_service,
+    mixpanel_service,
     paddle_service,
     paypal_service,
     posthog_service,
@@ -199,6 +200,26 @@ async def _execute_tool(
             for release in releases
         ]
 
+    if tool_name.startswith("get_mixpanel"):
+        creds = integrations.get("mixpanel", {})
+        if not creds:
+            return {"error": "Mixpanel not connected"}
+        access_token = creds.get("access_token", "")
+        project_id = creds.get("project_id", "")
+        region = creds.get("region", "us")
+        if tool_name == "get_mixpanel_event_counts":
+            return await mixpanel_service.get_event_counts(
+                access_token=access_token,
+                project_id=project_id,
+                region=region,
+                days_back=tool_args.get("days_back", 30),
+            )
+        return await mixpanel_service.get_top_events(
+            access_token=access_token,
+            project_id=project_id,
+            region=region,
+        )
+
     if tool_name.startswith("get_paddle"):
         creds = integrations.get("paddle", {})
         if not creds:
@@ -351,6 +372,8 @@ async def stream_investigation(
             yield {"type": "status", "message": "Fetching Vercel deployments…"}
         if any("supabase" in t for t in tool_names):
             yield {"type": "status", "message": "Querying Supabase database…"}
+        if any("mixpanel" in t for t in tool_names):
+            yield {"type": "status", "message": "Fetching Mixpanel engagement data…"}
         if any("paddle" in t for t in tool_names):
             yield {"type": "status", "message": "Fetching Paddle billing data…"}
         if any("chargebee" in t for t in tool_names):
@@ -383,6 +406,7 @@ async def stream_investigation(
                 "supabase",
                 "chargebee",
                 "paddle",
+                "mixpanel",
             ):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
