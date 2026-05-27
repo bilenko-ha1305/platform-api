@@ -24,6 +24,7 @@ class InvestigateRequestDTO(BaseModel):
 
     question: str
     conversation_id: uuid.UUID | None = None
+    disabled_integrations: list[str] = []
 
 
 class InvestigationResultDTO(BaseModel):

@@ -141,6 +141,12 @@ async def investigate(
             ),
         )
 
+    if body.disabled_integrations:
+        integrations = {
+            k: v for k, v in integrations.items()
+            if k not in body.disabled_integrations
+        }
+
     conversation_history = await _load_conversation_history(
         body.conversation_id, ctx.org_id, investigation_dao
     )
@@ -206,6 +212,12 @@ async def stream_investigate(
             status_code=400,
             detail="Connect at least one integration before investigating.",
         )
+
+    if body.disabled_integrations:
+        integrations = {
+            k: v for k, v in integrations.items()
+            if k not in body.disabled_integrations
+        }
 
     conversation_history = await _load_conversation_history(
         body.conversation_id, ctx.org_id, investigation_dao
