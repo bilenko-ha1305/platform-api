@@ -73,19 +73,10 @@ async def get_conversation(
         org_id=ctx.org_id,
     )
     return [
-        InvestigationResultDTO(
-            id=row.id,
-            question=row.question,
-            summary=row.result.get("summary", ""),
-            root_cause=row.result.get("root_cause", ""),
-            evidence=row.result.get("evidence", []),
-            recommended_action=row.result.get("recommended_action", ""),
-            confidence=row.result.get("confidence", "medium"),
-            sources_used=row.sources_used,
-            ai_model=row.ai_model,
-            token_usage=_token_usage_from_result(row.result),
-            conversation_id=row.conversation_id,
-            created_at=row.created_at,
+        _build_result_dto(
+            row.id, row.question, row.result,
+            row.sources_used, row.ai_model,
+            row.conversation_id, row.created_at,
         )
         for row in rows
     ]
@@ -119,7 +110,10 @@ async def investigate(
     if not integrations:
         raise HTTPException(
             status_code=400,
-            detail="Connect at least one integration (Stripe or PostHog) before investigating.",
+            detail=(
+                "Connect at least one integration"
+                " (Stripe or PostHog) before investigating."
+            ),
         )
 
     conversation_history = await _load_conversation_history(
@@ -148,19 +142,10 @@ async def investigate(
         conversation_id=body.conversation_id,
     )
 
-    return InvestigationResultDTO(
-        id=row.id,
-        question=row.question,
-        summary=result.get("summary", ""),
-        root_cause=result.get("root_cause", ""),
-        evidence=result.get("evidence", []),
-        recommended_action=result.get("recommended_action", ""),
-        confidence=result.get("confidence", "medium"),
-        sources_used=sources_used,
-        ai_model=row.ai_model,
-        token_usage=_token_usage_from_result(result),
-        conversation_id=row.conversation_id,
-        created_at=row.created_at,
+    return _build_result_dto(
+        row.id, row.question, result,
+        sources_used, row.ai_model,
+        row.conversation_id, row.created_at,
     )
 
 
@@ -231,14 +216,32 @@ async def stream_investigate(
                 ai_model=settings.ai_model,
                 conversation_id=body.conversation_id,
             )
-            done_payload = {
+            done_payload: dict[str, Any] = {
                 "type": "done",
                 "id": str(row.id),
                 "question": body.question,
                 "summary": result_data.get("summary", ""),
-                "root_cause": result_data.get("root_cause", ""),
-                "evidence": result_data.get("evidence", []),
-                "recommended_action": result_data.get("recommended_action", ""),
+                "likely_root_cause": (
+                    result_data.get("likely_root_cause")
+                    or result_data.get("root_cause", "")
+                ),
+                "affected_customers": result_data.get("affected_customers", []),
+                "revenue_impact": result_data.get("revenue_impact"),
+                "shared_pattern": result_data.get("shared_pattern"),
+                "supporting_events": (
+                    result_data.get("supporting_events")
+                    or result_data.get("evidence", [])
+                ),
+                "recommended_next_actions": (
+                    result_data.get("recommended_next_actions")
+                    or (
+                        [result_data["recommended_action"]]
+                        if result_data.get("recommended_action")
+                        else []
+                    )
+                ),
+                "category": result_data.get("category"),
+                "owner_team": result_data.get("owner_team"),
                 "confidence": result_data.get("confidence", "medium"),
                 "sources_used": sources_used,
                 "ai_model": settings.ai_model,
@@ -246,6 +249,7 @@ async def stream_investigate(
                 "conversation_id": str(body.conversation_id)
                 if body.conversation_id
                 else None,
+                "created_at": row.created_at.isoformat(),
             }
             yield f"data: {json.dumps(done_payload)}\n\n"
 
@@ -273,19 +277,10 @@ async def get_investigation(
     row = await investigation_dao.get_by_id(investigation_id, ctx.org_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Investigation not found")
-    return InvestigationResultDTO(
-        id=row.id,
-        question=row.question,
-        summary=row.result.get("summary", ""),
-        root_cause=row.result.get("root_cause", ""),
-        evidence=row.result.get("evidence", []),
-        recommended_action=row.result.get("recommended_action", ""),
-        confidence=row.result.get("confidence", "medium"),
-        sources_used=row.sources_used,
-        ai_model=row.ai_model,
-        token_usage=_token_usage_from_result(row.result),
-        conversation_id=row.conversation_id,
-        created_at=row.created_at,
+    return _build_result_dto(
+        row.id, row.question, row.result,
+        row.sources_used, row.ai_model,
+        row.conversation_id, row.created_at,
     )
 
 
@@ -320,6 +315,47 @@ async def list_investigations(
         )
         for row in rows
     ]
+
+
+def _build_result_dto(
+    id: Any,
+    question: str,
+    result: dict[str, Any],
+    sources_used: list[Any],
+    ai_model: str,
+    conversation_id: Any,
+    created_at: Any,
+) -> InvestigationResultDTO:
+    return InvestigationResultDTO(
+        id=id,
+        question=question,
+        summary=result.get("summary", ""),
+        likely_root_cause=(
+            result.get("likely_root_cause") or result.get("root_cause", "")
+        ),
+        affected_customers=result.get("affected_customers", []),
+        revenue_impact=result.get("revenue_impact"),
+        shared_pattern=result.get("shared_pattern"),
+        supporting_events=(
+            result.get("supporting_events") or result.get("evidence", [])
+        ),
+        recommended_next_actions=(
+            result.get("recommended_next_actions")
+            or (
+                [result["recommended_action"]]
+                if result.get("recommended_action")
+                else []
+            )
+        ),
+        category=result.get("category"),
+        owner_team=result.get("owner_team"),
+        confidence=result.get("confidence", "medium"),
+        sources_used=sources_used,
+        ai_model=ai_model,
+        token_usage=_token_usage_from_result(result),
+        conversation_id=conversation_id,
+        created_at=created_at,
+    )
 
 
 def _token_usage_from_result(result: dict[str, Any]) -> TokenUsageDTO | None:

@@ -32,9 +32,15 @@ class InvestigationResultDTO(BaseModel):
     id: uuid.UUID
     question: str
     summary: str
-    root_cause: str
-    evidence: list[str]
-    recommended_action: str
+    # New structured fields
+    likely_root_cause: str
+    affected_customers: list[str]
+    revenue_impact: str | None
+    shared_pattern: str | None
+    supporting_events: list[str]
+    recommended_next_actions: list[str]
+    category: str | None
+    owner_team: str | None
     confidence: Confidence
     sources_used: list[Any]
     ai_model: str

@@ -594,18 +594,32 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
         "- Always cite exact values from tool results: dates, amounts, emails, counts.\n"
         "- If a tool returned an error or insufficient data, say so explicitly in the summary.\n"
         "- Never invent data points — only use what the tools returned.\n"
-        "- Set confidence to 'high' only when the answer comes directly from tool data.\n\n"
+        "- Set confidence to 'high' only when the answer comes directly from tool data.\n"
+        "- affected_customers: include every customer email or ID returned by tools that is directly implicated. Use [] if no specific customers were identified.\n"
+        "- revenue_impact: compute from MRR, transaction, or cancellation data (e.g. '$5,200 MRR lost across 8 cancellations'). Set to null if no revenue data is available.\n"
+        "- shared_pattern: identify what the affected customers or events have in common (plan, timing, feature usage, etc.). Set to null for purely factual questions.\n"
+        "- category: classify the root cause as one of: product, support, billing, onboarding, sales.\n"
+        "- owner_team: name the team who should act (e.g. 'product team', 'customer success', 'billing support', 'engineering').\n\n"
         "## Output format\n"
         "Always respond with valid JSON in this exact shape:\n"
         "{\n"
-        '  "summary": "Direct answer to the question in 1–2 sentences, citing exact numbers/dates from the data",\n'
-        '  "root_cause": "For analytical questions: 2–4 sentences explaining why. For factual questions: empty string or additional context",\n'
-        '  "evidence": [\n'
-        '    "Exact data point with number/date/name from tool result",\n'
-        '    "Exact data point 2",\n'
-        '    "Exact data point 3 (omit if not applicable)"\n'
+        '  "summary": "One sentence direct answer — used in the conversation sidebar. Cite the key number or date.",\n'
+        '  "likely_root_cause": "For analytical questions: 2–4 sentences explaining the root cause with exact figures. For factual questions: the direct answer with context.",\n'
+        '  "affected_customers": ["customer email or ID from tool data", "..."],\n'
+        '  "revenue_impact": "$X MRR lost / at risk across N customers in the last N days — or null",\n'
+        '  "shared_pattern": "What affected customers or events have in common — 1–2 sentences. null if not applicable.",\n'
+        '  "supporting_events": [\n'
+        '    "Source: exact data point with number/date/name",\n'
+        '    "Source: exact data point 2",\n'
+        '    "Source: exact data point 3"\n'
         "  ],\n"
-        '  "recommended_action": "Next step if actionable, otherwise empty string",\n'
+        '  "recommended_next_actions": [\n'
+        '    "Specific actionable step 1",\n'
+        '    "Specific actionable step 2",\n'
+        '    "Specific actionable step 3 (omit if fewer actions needed)"\n'
+        "  ],\n"
+        '  "category": "product | support | billing | onboarding | sales",\n'
+        '  "owner_team": "team name who should act",\n'
         '  "confidence": "high | medium | low"\n'
         "}\n"
     )
