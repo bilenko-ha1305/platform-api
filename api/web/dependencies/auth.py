@@ -89,7 +89,9 @@ async def verify_token(
         return payload
 
     except httpx.HTTPError as exc:
-        logger.error("Failed to fetch JWKS — domain=%s error=%s", settings.auth0_domain, exc)
+        logger.error(
+            "Failed to fetch JWKS — domain=%s error=%s", settings.auth0_domain, exc
+        )
         raise HTTPException(status_code=503, detail="Auth service unavailable") from exc
     except JWTError as exc:
         logger.error(

@@ -36,7 +36,10 @@ async def stream_report(
     client = _client(api_key=api_key, base_url=base_url)
     connected = list(integrations.keys())
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": build_report_system_prompt(date_from, date_to, business_profile)},
+        {
+            "role": "system",
+            "content": build_report_system_prompt(date_from, date_to, business_profile),
+        },
         {
             "role": "user",
             "content": (
@@ -114,7 +117,14 @@ async def stream_report(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase"):
+            for source in (
+                "stripe",
+                "posthog",
+                "intercom",
+                "mailchimp",
+                "github",
+                "supabase",
+            ):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
 

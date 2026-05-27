@@ -68,7 +68,10 @@ class Settings(BaseSettings):
     )
 
     # Allowed CORS origins — space-separated list in env var
-    cors_origins: list[str] = ["http://localhost:3000", "https://platform-web-eta-one.vercel.app"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "https://platform-web-eta-one.vercel.app",
+    ]
 
     # Auth0 configuration
     auth0_domain: str = ""
@@ -105,9 +108,9 @@ class Settings(BaseSettings):
         """
         if self.database_url:
             # Railway/Supabase provide postgres:// or postgresql:// — asyncpg needs the +asyncpg scheme
-            raw = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1).replace(
-                "postgresql://", "postgresql+asyncpg://", 1
-            )
+            raw = self.database_url.replace(
+                "postgres://", "postgresql+asyncpg://", 1
+            ).replace("postgresql://", "postgresql+asyncpg://", 1)
             return URL(raw)
         return URL.build(
             scheme="postgresql+asyncpg",

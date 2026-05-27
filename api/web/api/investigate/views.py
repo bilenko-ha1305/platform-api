@@ -53,7 +53,9 @@ async def list_conversations(
     ]
 
 
-@router.get("/conversations/{conversation_id}", response_model=list[InvestigationResultDTO])
+@router.get(
+    "/conversations/{conversation_id}", response_model=list[InvestigationResultDTO]
+)
 async def get_conversation(
     conversation_id: uuid.UUID,
     ctx: OrgContext = Depends(get_org_context),
@@ -241,7 +243,9 @@ async def stream_investigate(
                 "sources_used": sources_used,
                 "ai_model": settings.ai_model,
                 "token_usage": result_data.get("token_usage"),
-                "conversation_id": str(body.conversation_id) if body.conversation_id else None,
+                "conversation_id": str(body.conversation_id)
+                if body.conversation_id
+                else None,
             }
             yield f"data: {json.dumps(done_payload)}\n\n"
 

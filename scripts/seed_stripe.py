@@ -71,29 +71,37 @@ def create_products_and_prices(client: stripe.StripeClient) -> tuple[str, str]:
     """Create Solo and Studio products + monthly prices. Return (solo_price_id, studio_price_id)."""
     print("Creating products…")
 
-    solo_product = client.products.create(params={
-        "name": "Solo Plan",
-        "description": "For individual makers and freelancers",
-    })
-    studio_product = client.products.create(params={
-        "name": "Studio Plan",
-        "description": "For growing teams and agencies",
-    })
+    solo_product = client.products.create(
+        params={
+            "name": "Solo Plan",
+            "description": "For individual makers and freelancers",
+        }
+    )
+    studio_product = client.products.create(
+        params={
+            "name": "Studio Plan",
+            "description": "For growing teams and agencies",
+        }
+    )
 
-    solo_price = client.prices.create(params={
-        "product": solo_product.id,
-        "unit_amount": 2900,  # $29/mo
-        "currency": "usd",
-        "recurring": {"interval": "month"},
-        "nickname": "Solo Monthly",
-    })
-    studio_price = client.prices.create(params={
-        "product": studio_product.id,
-        "unit_amount": 9900,  # $99/mo
-        "currency": "usd",
-        "recurring": {"interval": "month"},
-        "nickname": "Studio Monthly",
-    })
+    solo_price = client.prices.create(
+        params={
+            "product": solo_product.id,
+            "unit_amount": 2900,  # $29/mo
+            "currency": "usd",
+            "recurring": {"interval": "month"},
+            "nickname": "Solo Monthly",
+        }
+    )
+    studio_price = client.prices.create(
+        params={
+            "product": studio_product.id,
+            "unit_amount": 9900,  # $99/mo
+            "currency": "usd",
+            "recurring": {"interval": "month"},
+            "nickname": "Studio Monthly",
+        }
+    )
 
     print(f"  Solo price:   {solo_price.id}  ($29/mo)")
     print(f"  Studio price: {studio_price.id}  ($99/mo)")
@@ -105,11 +113,13 @@ def create_customers(client: stripe.StripeClient) -> list[str]:
     print("\nCreating customers…")
     ids: list[str] = []
     for email, name in CUSTOMERS:
-        cust = client.customers.create(params={
-            "email": email,
-            "name": name,
-            "source": "tok_visa",  # test Visa card, no real charge
-        })
+        cust = client.customers.create(
+            params={
+                "email": email,
+                "name": name,
+                "source": "tok_visa",  # test Visa card, no real charge
+            }
+        )
         ids.append(cust.id)
         print(f"  {name} ({email}) → {cust.id}")
     return ids
@@ -124,15 +134,16 @@ def create_active_subscriptions(
     """Create 14 active subscriptions for the first 14 customers."""
     print("\nCreating active subscriptions…")
     # First 10 on Solo, next 4 on Studio
-    assignments = (
-        [(cid, solo_price_id) for cid in customer_ids[:10]]
-        + [(cid, studio_price_id) for cid in customer_ids[10:14]]
-    )
+    assignments = [(cid, solo_price_id) for cid in customer_ids[:10]] + [
+        (cid, studio_price_id) for cid in customer_ids[10:14]
+    ]
     for cid, price_id in assignments:
-        sub = client.subscriptions.create(params={
-            "customer": cid,
-            "items": [{"price": price_id}],
-        })
+        sub = client.subscriptions.create(
+            params={
+                "customer": cid,
+                "items": [{"price": price_id}],
+            }
+        )
         plan = "Solo" if price_id == solo_price_id else "Studio"
         print(f"  {cid}  [{plan}]  → {sub.id}")
 
@@ -153,19 +164,21 @@ def create_cancelled_subscriptions(
 
     # last 6 customers — mix of plans and reasons
     cancellations = [
-        (customer_ids[14], solo_price_id,    "too_expensive"),
-        (customer_ids[15], solo_price_id,    "switched_service"),
-        (customer_ids[16], studio_price_id,  "missing_features"),
-        (customer_ids[17], solo_price_id,    "unused"),
-        (customer_ids[18], studio_price_id,  "too_expensive"),
-        (customer_ids[19], solo_price_id,    "switched_service"),
+        (customer_ids[14], solo_price_id, "too_expensive"),
+        (customer_ids[15], solo_price_id, "switched_service"),
+        (customer_ids[16], studio_price_id, "missing_features"),
+        (customer_ids[17], solo_price_id, "unused"),
+        (customer_ids[18], studio_price_id, "too_expensive"),
+        (customer_ids[19], solo_price_id, "switched_service"),
     ]
 
     for cid, price_id, reason in cancellations:
-        sub = client.subscriptions.create(params={
-            "customer": cid,
-            "items": [{"price": price_id}],
-        })
+        sub = client.subscriptions.create(
+            params={
+                "customer": cid,
+                "items": [{"price": price_id}],
+            }
+        )
         client.subscriptions.cancel(
             sub.id,
             params=SubscriptionCancelParams(cancellation_details={"feedback": reason}),  # type: ignore[typeddict-item]
@@ -175,13 +188,15 @@ def create_cancelled_subscriptions(
 
     # Two more using the first two customers (they churned and re-subscribed scenario)
     for cid, price_id, reason in [
-        (customer_ids[0], solo_price_id,   "customer_service"),
+        (customer_ids[0], solo_price_id, "customer_service"),
         (customer_ids[2], studio_price_id, "too_complex"),
     ]:
-        sub = client.subscriptions.create(params={
-            "customer": cid,
-            "items": [{"price": price_id}],
-        })
+        sub = client.subscriptions.create(
+            params={
+                "customer": cid,
+                "items": [{"price": price_id}],
+            }
+        )
         client.subscriptions.cancel(
             sub.id,
             params=SubscriptionCancelParams(cancellation_details={"feedback": reason}),  # type: ignore[typeddict-item]

@@ -33,7 +33,9 @@ def cancel_and_delete_customers(client: stripe.StripeClient) -> int:
 
         for cust in customers:
             # Cancel active subscriptions first
-            subs = client.subscriptions.list(params={"customer": cust.id, "status": "active"})
+            subs = client.subscriptions.list(
+                params={"customer": cust.id, "status": "active"}
+            )
             for sub in subs.data:
                 client.subscriptions.cancel(sub.id)
 

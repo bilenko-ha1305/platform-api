@@ -352,7 +352,15 @@ async def stream_investigation(
             tool_name = next(
                 (tc.function.name for tc in tool_calls if tc.id == call_id), ""
             )
-            for source in ("stripe", "posthog", "intercom", "mailchimp", "github", "supabase", "chargebee"):
+            for source in (
+                "stripe",
+                "posthog",
+                "intercom",
+                "mailchimp",
+                "github",
+                "supabase",
+                "chargebee",
+            ):
                 if source in tool_name and source not in sources_used:
                     sources_used.append(source)
 

@@ -57,7 +57,9 @@ async def _run_due_reports(session_factory: async_sessionmaker[AsyncSession]) ->
             integrations = await int_dao.get_decrypted(schedule.org_id)
             slack_creds = integrations.get("slack")
             if not slack_creds or not slack_creds.get("webhook_url"):
-                logger.warning("Org %s has a schedule but no Slack webhook", schedule.org_id)
+                logger.warning(
+                    "Org %s has a schedule but no Slack webhook", schedule.org_id
+                )
                 continue
 
             date_to: date = now.date() - timedelta(days=1)
@@ -90,7 +92,9 @@ async def _run_due_reports(session_factory: async_sessionmaker[AsyncSession]) ->
                 await session.commit()
                 logger.info("Scheduled report sent for org %s", schedule.org_id)
             except Exception:
-                logger.exception("Failed to send scheduled report for org %s", schedule.org_id)
+                logger.exception(
+                    "Failed to send scheduled report for org %s", schedule.org_id
+                )
 
 
 def start_scheduler(session_factory: async_sessionmaker[AsyncSession]) -> None:

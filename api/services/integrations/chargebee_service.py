@@ -120,27 +120,38 @@ async def get_cancellations(
     )
 
     url = _mcp_url(site, data_center)
-    raw = await _call_tool(url, api_key, "list_subscriptions", {
-        "status[is]": "cancelled",
-        "cancelled_at[after]": start_ts,
-        "cancelled_at[before]": end_ts,
-        "limit": 100,
-    })
+    raw = await _call_tool(
+        url,
+        api_key,
+        "list_subscriptions",
+        {
+            "status[is]": "cancelled",
+            "cancelled_at[after]": start_ts,
+            "cancelled_at[before]": end_ts,
+            "limit": 100,
+        },
+    )
 
     items: list[Any] = raw.get("list", []) if isinstance(raw, dict) else []
     results: list[dict[str, Any]] = []
     for item in items:
-        sub: dict[str, Any] = item.get("subscription", {}) if isinstance(item, dict) else {}
-        customer: dict[str, Any] = item.get("customer", {}) if isinstance(item, dict) else {}
+        sub: dict[str, Any] = (
+            item.get("subscription", {}) if isinstance(item, dict) else {}
+        )
+        customer: dict[str, Any] = (
+            item.get("customer", {}) if isinstance(item, dict) else {}
+        )
         plan_amount = sub.get("plan_amount")
-        results.append({
-            "subscription_id": sub.get("id"),
-            "customer_id": sub.get("customer_id"),
-            "customer_email": customer.get("email"),
-            "plan_name": sub.get("plan_id"),
-            "mrr_lost": plan_amount / 100 if plan_amount else None,
-            "cancelled_at": sub.get("cancelled_at"),
-        })
+        results.append(
+            {
+                "subscription_id": sub.get("id"),
+                "customer_id": sub.get("customer_id"),
+                "customer_email": customer.get("email"),
+                "plan_name": sub.get("plan_id"),
+                "mrr_lost": plan_amount / 100 if plan_amount else None,
+                "cancelled_at": sub.get("cancelled_at"),
+            }
+        )
     return results
 
 
@@ -159,21 +170,30 @@ async def get_subscription_overview(
     :return: Single-element list with subscription count and MRR.
     """
     url = _mcp_url(site, data_center)
-    raw = await _call_tool(url, api_key, "list_subscriptions", {
-        "status[is]": "active",
-        "limit": 100,
-    })
+    raw = await _call_tool(
+        url,
+        api_key,
+        "list_subscriptions",
+        {
+            "status[is]": "active",
+            "limit": 100,
+        },
+    )
 
     items: list[Any] = raw.get("list", []) if isinstance(raw, dict) else []
     active_count = len(items)
     total_mrr: float = 0.0
     for item in items:
-        sub: dict[str, Any] = item.get("subscription", {}) if isinstance(item, dict) else {}
+        sub: dict[str, Any] = (
+            item.get("subscription", {}) if isinstance(item, dict) else {}
+        )
         amount = sub.get("plan_amount") or 0
         total_mrr += amount / 100
 
-    return [{
-        "period": f"last_{days}_days",
-        "active_subscriptions": active_count,
-        "estimated_mrr": total_mrr,
-    }]
+    return [
+        {
+            "period": f"last_{days}_days",
+            "active_subscriptions": active_count,
+            "estimated_mrr": total_mrr,
+        }
+    ]

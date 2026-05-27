@@ -16,9 +16,7 @@ class ScheduledReport(Base):
     """Stores one daily-report schedule per organisation."""
 
     __tablename__ = "scheduled_reports"
-    __table_args__ = (
-        UniqueConstraint("org_id", name="scheduled_reports_org_id_key"),
-    )
+    __table_args__ = (UniqueConstraint("org_id", name="scheduled_reports_org_id_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4

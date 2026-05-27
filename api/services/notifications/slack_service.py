@@ -24,12 +24,16 @@ def _mrr_line(mrr_overview: dict[str, Any]) -> str:
 
 
 def _confidence_emoji(confidence: str) -> str:
-    return {"high": ":large_green_circle:", "medium": ":large_yellow_circle:", "low": ":red_circle:"}.get(
-        confidence.lower(), ":white_circle:"
-    )
+    return {
+        "high": ":large_green_circle:",
+        "medium": ":large_yellow_circle:",
+        "low": ":red_circle:",
+    }.get(confidence.lower(), ":white_circle:")
 
 
-def build_blocks(report: dict[str, Any], date_from: str, date_to: str) -> list[dict[str, Any]]:
+def build_blocks(
+    report: dict[str, Any], date_from: str, date_to: str
+) -> list[dict[str, Any]]:
     """Build Slack Block Kit blocks from a report dict.
 
     :param report: Structured report as returned by run_report().
@@ -44,24 +48,37 @@ def build_blocks(report: dict[str, Any], date_from: str, date_to: str) -> list[d
     blocks: list[dict[str, Any]] = [
         {
             "type": "header",
-            "text": {"type": "plain_text", "text": f":bar_chart: Daily Report: {date_from} – {date_to}"},
+            "text": {
+                "type": "plain_text",
+                "text": f":bar_chart: Daily Report: {date_from} – {date_to}",
+            },
         },
         {"type": "divider"},
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": report.get("executive_summary", "_No summary available_")},
+            "text": {
+                "type": "mrkdwn",
+                "text": report.get("executive_summary", "_No summary available_"),
+            },
         },
         {"type": "divider"},
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*MRR*\n{_mrr_line(report.get('mrr_overview', {}))}"},
+                {
+                    "type": "mrkdwn",
+                    "text": f"*MRR*\n{_mrr_line(report.get('mrr_overview', {}))}",
+                },
                 {
                     "type": "mrkdwn",
                     "text": (
                         f"*Churn*\n"
                         f"{churn.get('total_churned', 0)} cancellations"
-                        + (f"  |  ${churn.get('mrr_lost', 0):,.0f} MRR lost" if churn.get("mrr_lost") else "")
+                        + (
+                            f"  |  ${churn.get('mrr_lost', 0):,.0f} MRR lost"
+                            if churn.get("mrr_lost")
+                            else ""
+                        )
                     ),
                 },
                 {
@@ -84,15 +101,17 @@ def build_blocks(report: dict[str, Any], date_from: str, date_to: str) -> list[d
         text = "*Recommendations*\n" + "\n".join(f"→ {r}" for r in recs)
         blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": text}})
 
-    blocks.append({
-        "type": "context",
-        "elements": [
-            {
-                "type": "mrkdwn",
-                "text": f"{_confidence_emoji(confidence)} Confidence: *{confidence}*  •  Powered by Synvar",
-            }
-        ],
-    })
+    blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"{_confidence_emoji(confidence)} Confidence: *{confidence}*  •  Powered by Synvar",
+                }
+            ],
+        }
+    )
 
     return blocks
 

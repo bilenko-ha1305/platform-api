@@ -28,7 +28,9 @@ async def get_deployments(
     :param days_back: Days of deployment history to retrieve.
     :return: List of deployments with state, date, and URL.
     """
-    since_ms = int((datetime.now(tz=UTC) - timedelta(days=days_back)).timestamp() * 1000)
+    since_ms = int(
+        (datetime.now(tz=UTC) - timedelta(days=days_back)).timestamp() * 1000
+    )
     params: dict[str, str | int] = {"limit": 50, "since": since_ms}
     if team_id:
         params["teamId"] = team_id
@@ -57,8 +59,8 @@ async def get_deployments(
                 "id": d.get("uid"),
                 "name": d.get("name"),
                 "url": d.get("url"),
-                "state": d.get("state"),          # READY | ERROR | CANCELED | BUILDING
-                "target": d.get("target"),         # production | preview
+                "state": d.get("state"),  # READY | ERROR | CANCELED | BUILDING
+                "target": d.get("target"),  # production | preview
                 "created_at": created_at,
                 "creator": d.get("creator", {}).get("username"),
             }

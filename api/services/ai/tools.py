@@ -409,7 +409,7 @@ TOOLS: list[dict[str, Any]] = [
                         "type": "object",
                         "description": (
                             "Column-level PostgREST filters as key-value pairs. "
-                            "e.g. {\"status\": \"eq.active\", \"plan\": \"eq.pro\"}. "
+                            'e.g. {"status": "eq.active", "plan": "eq.pro"}. '
                             "Supported operators: eq, neq, lt, lte, gt, gte, like, ilike."
                         ),
                         "additionalProperties": {"type": "string"},
@@ -420,6 +420,7 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
 ]
+
 
 def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
     """Build a system prompt tailored to the organisation's business profile."""
@@ -442,9 +443,7 @@ def build_system_prompt(business_profile: dict[str, Any] | None = None) -> str:
             lines.append(f"Product launched: {launched}")
         if lines:
             biz_section = (
-                "## About this business\n"
-                + "\n".join(lines)
-                + "\n\n"
+                "## About this business\n" + "\n".join(lines) + "\n\n"
                 "Use this context throughout your analysis:\n"
                 "- Reference the product description when explaining what churned users stopped doing.\n"
                 "- For B2B products: focus on contract renewals, seat count changes, and team-level disengagement.\n"

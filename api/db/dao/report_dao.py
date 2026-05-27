@@ -61,7 +61,9 @@ class ReportDAO:
         :return: Count of reports since the start of this month.
         """
         now = datetime.now(tz=UTC)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        month_start = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
         result = await self.session.execute(
             select(func.count()).where(
                 Report.org_id == org_id,
@@ -92,9 +94,7 @@ class ReportDAO:
         )
         return list(result.scalars().all())
 
-    async def get_by_id(
-        self, report_id: uuid.UUID, org_id: uuid.UUID
-    ) -> Report | None:
+    async def get_by_id(self, report_id: uuid.UUID, org_id: uuid.UUID) -> Report | None:
         """Fetch a single report, scoped to the organisation.
 
         :param report_id: UUID primary key.

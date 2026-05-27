@@ -17,7 +17,7 @@ from api.db.models.investigation_model import Investigation
 class ConversationSummary:
     """In-memory summary of a conversation (group of investigations)."""
 
-    __slots__ = ("conversation_id", "title", "message_count", "last_message_at")
+    __slots__ = ("conversation_id", "last_message_at", "message_count", "title")
 
     def __init__(
         self,
@@ -79,7 +79,9 @@ class InvestigationDAO:
         :return: Count of investigations since the start of this month.
         """
         now = datetime.now(tz=UTC)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        month_start = now.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
         result = await self.session.execute(
             select(func.count()).where(
                 Investigation.org_id == org_id,
