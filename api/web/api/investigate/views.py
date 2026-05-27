@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import datetime
 import json
+import logging
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -26,6 +28,8 @@ from api.web.api.investigate.schema import (
 from api.web.api.shared import check_plan_credits
 from api.web.dependencies.auth import verify_token
 from api.web.dependencies.org import OrgContext, get_org_context
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -207,18 +211,28 @@ async def stream_investigate(
 
         if result_data is not None:
             sources_used: list[str] = result_data.pop("sources_used", [])
-            row = await investigation_dao.create(
-                org_id=ctx.org_id,
-                created_by=user_payload["sub"],
-                question=body.question,
-                result=result_data,
-                sources_used=sources_used,
-                ai_model=settings.ai_model,
-                conversation_id=body.conversation_id,
-            )
+            row_id = str(uuid.uuid4())
+            row_created_at = ""
+            try:
+                row = await investigation_dao.create(
+                    org_id=ctx.org_id,
+                    created_by=user_payload["sub"],
+                    question=body.question,
+                    result=result_data,
+                    sources_used=sources_used,
+                    ai_model=settings.ai_model,
+                    conversation_id=body.conversation_id,
+                )
+                row_id = str(row.id)
+                row_created_at = row.created_at.isoformat()
+            except Exception:
+                logger.exception(
+                    "Failed to persist investigation; returning result without DB row"
+                )
+                row_created_at = datetime.datetime.utcnow().isoformat()
             done_payload: dict[str, Any] = {
                 "type": "done",
-                "id": str(row.id),
+                "id": row_id,
                 "question": body.question,
                 "summary": result_data.get("summary", ""),
                 "likely_root_cause": (
@@ -249,7 +263,7 @@ async def stream_investigate(
                 "conversation_id": str(body.conversation_id)
                 if body.conversation_id
                 else None,
-                "created_at": row.created_at.isoformat(),
+                "created_at": row_created_at,
             }
             yield f"data: {json.dumps(done_payload)}\n\n"
 
